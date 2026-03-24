@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huy Chatbot AI v5.0 🫡</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --bg: #0f172a;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #f1f5f9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            height: 85vh;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #chat-window {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar */
+        #chat-window::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-window::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            max-width: 80%;
+            padding: 14px 20px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.5;
+            animation: slideUp 0.3s ease-out;
+            position: relative;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-top-right-radius: 4px;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-top-left-radius: 4px;
+        }
+
+        .ai-message::before {
+            content: 'H';
+            position: absolute;
+            left: -35px;
+            bottom: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .input-area {
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        input {
+            flex: 1;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 14px 20px;
+            border-radius: 14px;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        button {
+            background: white;
+            color: var(--bg);
+            border: none;
+            padding: 0 24px;
+            border-radius: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing {
+            font-style: italic;
+            opacity: 0.6;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Huy AI Chatbot <span style="font-size: 14px; opacity: 0.7;">v5.0</span></h1>
+            <div style="font-size: 12px; opacity: 0.6;">Status: Online 🫡</div>
+        </header>
+
+        <div id="chat-window">
+            <div class="message ai-message">Chào sếp! Huy bản nâng cấp v5.0 đã sẵn sàng tác chiến. Sếp cần Huy hỗ trợ gì hôm nay không ạ? 🫡</div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+            <button id="send-btn">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        let history = [];
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add user message to UI
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            // Loading state
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'message ai-message typing';
+            loadingMsg.innerText = 'Huy đang suy nghĩ...';
+            chatWindow.appendChild(loadingMsg);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, history })
+                });
+
+                const data = await response.json();
+                chatWindow.removeChild(loadingMsg);
+
+                if (data.reply) {
+                    addMessage(data.reply, 'ai');
+                    history.push({ role: 'user', content: message });
+                    history.push({ role: 'assistant', content: data.reply });
+                } else {
+                    addMessage('Có lỗi xảy ra sếp ơi! 🤖', 'ai');
+                }
+            } catch (error) {
+                chatWindow.removeChild(loadingMsg);
+                addMessage('Không kết nối được server sếp ơi! 🤖', 'ai');
+            }
+        }
+
+        function addMessage(text, role) {
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            div.innerText = text;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
