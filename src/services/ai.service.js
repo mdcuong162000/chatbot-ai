@@ -12,6 +12,8 @@ const groq = new Groq({
   apiKey: config.groqApiKey || 'mock-key-truoc-khi-chay-that',
 });
 
+const db = require('../db');
+
 async function getChatResponse(message, conversationId, options = {}) {
   // Lấy lịch sử từ DB SQLite
   const history = memoryService.getHistory(conversationId);
@@ -46,69 +48,87 @@ async function getChatResponse(message, conversationId, options = {}) {
 
   // Ưu tiên dùng Groq
   try {
-    return await getGroqResponse(message, history, productContext, customerMeta, options);
+    return await getGroqResponse(message, history, productContext, customerMeta, options, conversationId);
   } catch (error) {
     console.warn('Groq Error, falling back to OpenAI...', error.message);
     return await getOpenAIResponse(message, history, productContext, customerMeta, options);
   }
 }
 
-async function getGroqResponse(message, history = [], productContext = '', customerMeta = null, options = {}) {
+async function getGroqResponse(message, history = [], productContext = '', customerMeta = null, options = {}, conversationId = null) {
   try {
     const tone_style = "em/anh chị";
-    const isReturning = customerMeta && customerMeta.total_orders > 0;
+    
+    // --- MỤC 8: ROUTER LOGIC (8 BƯỚC) ---
+    
+    // BƯỚC 1: Blacklist
+    if (customerMeta && customerMeta.status === 'blacklist') {
+      return "Dạ, hiện tại Shop không thể hỗ trợ mình qua kênh này. Cảm ơn ạ.";
+    }
 
     let systemInstruction = "";
+    let forceHuman = false;
+
+    // BƯỚC 3: Phát hiện từ khóa khiếu nại (Mục 8 - Bước 3)
+    const complaintKeywords = ['lỗi','hỏng','sai','thiếu','chưa nhận','mất hàng','hoàn tiền','trả hàng','kiện','luật sư','báo công an','tức','bực','thất vọng'];
+    const hasComplaintKeyword = complaintKeywords.some(kw => message.toLowerCase().includes(kw));
+    
+    if (hasComplaintKeyword && !customerMeta?.active_complaint) {
+      // Tự động tạo record khiếu nại nếu chưa có
+      memoryService.createComplaint(conversationId, customerMeta.id, message);
+    }
+
+    // BƯỚC 2 & 3: Khiếu nại đang mở hoặc mới phát sinh
+    if (customerMeta?.active_complaint || hasComplaintKeyword) {
+        systemInstruction = `# PROMPT KHIẾU NẠI (Mục 6)
+Bạn là chuyên viên xử lý khiếu nại.
+BƯỚC 1: Xác nhận cảm xúc (Dạ em rất tiếc/em hiểu mình đang bực ạ). TUYỆT ĐỐI không dùng "Dạ em xin lỗi ạ" (nghe máy móc).
+BƯỚC 2: Hỏi đúng trọng tâm (Lỗi lúc nào? Đã dùng bao lâu?).
+BƯỚC 3: Đưa hướng xử lý (Bên em có thể đổi mới hoặc hoàn tiền - mình muốn hướng nào?).
+BƯỚC 4: Xác nhận & Đóng.
+Mục tiêu: Xoa dịu + Giải quyết.`;
+        
+        // BƯỚC 4: VIP & Escalation (Mục 8 - Bước 4)
+        if (customerMeta?.priority_level === 'VIP' || message.toLowerCase().includes('kiện') || message.toLowerCase().includes('công an')) {
+           forceHuman = true;
+        }
+    } else {
+        // BƯỚC 5: Phân loại Mới/Tiềm năng/Cũ (Mục 8 - Bước 5)
+        const isBought = customerMeta && customerMeta.total_orders > 0;
+        const isProspect = !isBought && history.length > 2; // Nhắn hơn 2 câu là tiềm năng
+
+        if (isBought) {
+            // PROMPT KHÁCH CŨ (Mục 5C)
+            systemInstruction = `# BỐI CẢNH KHÁCH CŨ (Existing Customer)
+Khách đã mua: ${customerMeta.purchased_products}.
+Lần cuối: ${customerMeta.last_purchase_date}.
+- Không hỏi lại thông tin đã biết.
+- Ưu tiên hỏi thăm trải nghiệm cũ trước khi bán mới.
+- Chốt nhanh: Đề xuất ship theo địa chỉ cũ.`;
+        } else if (isProspect) {
+            // PROMPT KHÁCH TIỀM NĂNG (Mục 5B)
+            systemInstruction = `# KHÁCH TIỀM NĂNG (Returning Prospect)
+Khách đã quan tâm nhưng chưa chốt.
+- Inject lịch sử: Khách từng hỏi về sản phẩm trước đó.
+- Tập trung xử lý từ chối (giá/ship).
+- Thúc đẩy chốt thử đơn đầu tiên.`;
+        } else {
+            // PROMPT KHÁCH MỚI (Mục 5A)
+            systemInstruction = `# VAI TRÒ KHÁCH MỚI (New Lead)
+Chào ngắn + Hỏi 1 câu khám phá nhu cầu.
+- Không giới thiệu ngay câu đầu.
+- Trả lời ngắn 3 câu.
+- Sản phẩm: ${productContext}`;
+        }
+    }
+
+    // Nếu phải escalate (người thật)
+    if (forceHuman) {
+      systemInstruction += "\n[LỆNH: GIAO CHO NGƯỜI THẬT] Hãy nói câu chuyển tiếp tự nhiên và kết thúc.";
+    }
 
     if (options.skipGreeting) {
         systemInstruction = 'Bạn là Huy, trình biên dịch lệnh Shell chuyên nghiệp. CHỈ TRẢ VỀ LỆNH.';
-    } else if (isReturning) {
-        // PROMPT KHÁCH CŨ
-        systemInstruction = `# BỐI CẢNH KHÁCH HÀNG CŨ
-Khách này đã mua hàng trước đây.
-Lịch sử mua: ${customerMeta.purchase_history || 'N/A'}
-Sản phẩm đã mua: ${customerMeta.purchased_products || 'N/A'}
-Lần mua gần nhất: ${customerMeta.last_purchase_date}
-Trạng thái: ${customerMeta.stage}
-
-# NGUYÊN TẮC VỚI KHÁCH CŨ
-- Không hỏi lại thông tin đã biết (tên, địa chỉ, sở thích)
-- Không tư vấn như người lạ — khách đã tin tưởng mình rồi
-- Ưu tiên hỏi thăm trước, bán hàng sau
-- Gợi ý sản phẩm phải liên quan đến thứ họ đã mua
-
-# HÀNH VI THEO TỪNG TÌNH HUỐNG
-- Khách nhắn lại: Hỏi thăm trải nghiệm [SẢN PHẨM ĐÃ MUA]
-- Hỏi sản phẩm mới: Gợi ý liên quan đến thứ đã mua
-- Ưu đãi: Nhắc về quyền lợi khách quen
-- Chốt đơn: Đề xuất đặt luôn theo địa chỉ cũ nếu có.
-
-# GIỚI HẠN
-- Không hứa hẹn điều chưa xác nhận.
-- Không tự bịa thông tin đơn hàng cũ nếu trống.`;
-    } else {
-        // PROMPT KHÁCH MỚI (Bản cũ của sếp)
-        systemInstruction = `# VAI TRÒ
-Bạn là trợ lý tư vấn bán hàng của cửa hàng.
-Sản phẩm hiện tại: ${productContext}
-Xưng hô với khách: ${tone_style}
-
-# NGUYÊN TẮC CỐT LÕI
-- Không bao giờ giới thiệu sản phẩm ngay câu đầu tiên
-- Không ép mua, không nói "mua ngay kẻo hết"
-- Luôn trả lời ngắn gọn, tối đa 3-4 câu mỗi lượt
-- Nếu không chắc thông tin sản phẩm, KHÔNG tự bịa — hãy nói "Để em kiểm tra lại thông tin chính xác ạ"
-
-# HÀNH VI THEO TỪNG TÌNH HUỐNG
-- Khách mới: Chào ngắn + hỏi nhu cầu
-- Hỏi giá: Báo giá + hỏi context dùng làm gì
-- So sánh: Thừa nhận đối thủ tốt + nêu khác biệt của mình
-- Do dự: Tìm lý do thật sự (giá/chất lượng)
-- Từ chối: Ghi nhận + hỏi nhẹ 1 câu lý do.
-- Khiếu nại: Chuyển ngay quản lý.
-
-# CHỐT ĐƠN
-Hỏi chốt tự nhiên, không để khách tự quyết định.`;
     }
 
     const chatCompletion = await groq.chat.completions.create({
@@ -120,7 +140,15 @@ Hỏi chốt tự nhiên, không để khách tự quyết định.`;
       model: 'llama-3.3-70b-versatile',
     });
 
-    return chatCompletion.choices[0].message.content;
+    let reply = chatCompletion.choices[0].message.content;
+    
+    if (forceHuman) {
+       // Phát tín hiệu cho Dashboard qua Socket (đã có logic ở app.js xử lý status hội thoại)
+       // Ở đây mình trả về reply, router sẽ lo việc cập nhật status DB sau.
+    }
+
+    return reply;
+
   } catch (error) {
     console.error('Groq Service Error:', error.message);
     throw error;
@@ -147,6 +175,13 @@ async function getOpenAIResponse(message, history = [], productContext = '', cus
     console.error('OpenAI Error:', error.message);
     throw error;
   }
+}
+
+// Bổ sung helper để check ID khách hàng (dùng cho router)
+function getCustomerIdFromConv(conversationId) {
+    const db = require('../db');
+    const conv = db.prepare('SELECT customer_id FROM conversations WHERE id = ?').get(conversationId);
+    return conv ? conv.customer_id : null;
 }
 
 module.exports = {

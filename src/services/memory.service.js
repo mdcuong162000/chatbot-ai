@@ -108,9 +108,15 @@ class MemoryService {
   /**
    * Lấy thông tin khách hàng (phục vụ Prompt Khách cũ)
    */
+  /**
+   * Lấy thông tin khách hàng (phục vụ Prompt Khách cũ & Router Logic)
+   */
   getCustomerMetadata(customerId) {
-    const customer = db.prepare('SELECT phone, stage, total_orders FROM customers WHERE id = ?').get(customerId);
+    const customer = db.prepare('SELECT phone, stage, total_orders, status, priority_level FROM customers WHERE id = ?').get(customerId);
     if (!customer) return null;
+
+    // Kiểm tra khiếu nại đang mở
+    const activeComplaint = db.prepare("SELECT * FROM complaints WHERE customer_id = ? AND status = 'open' LIMIT 1").get(customerId);
 
     // Lấy lịch sử sản phẩm đã mua từ outcomes
     const purchases = db.prepare(`
@@ -124,11 +130,27 @@ class MemoryService {
     return {
       phone: customer.phone,
       stage: customer.stage,
+      status: customer.status, // new_lead, returning_prospect, existing_customer, blacklist
+      priority_level: customer.priority_level, // normal, VIP
       total_orders: customer.total_orders,
+      active_complaint: activeComplaint,
       purchased_products: purchases.map(p => p.name).join(', '),
       last_purchase_date: purchases.length > 0 ? purchases[0].created_at : 'Chưa có',
       purchase_history: purchases.map(p => `${p.name} (${p.created_at})`).join('; ')
     };
+  }
+
+  /**
+   * Tạo khiếu nại mới (Mục 8 - Router Logic)
+   */
+  createComplaint(conversationId, customerId, content, type = 'chưa_phân_loại') {
+    const id = `comp_${Date.now()}`;
+    const stmt = db.prepare(`
+      INSERT INTO complaints (id, customer_id, conversation_id, content, type) 
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, customerId, conversationId, content, type);
+    return id;
   }
 }
 
