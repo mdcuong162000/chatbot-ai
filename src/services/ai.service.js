@@ -13,6 +13,7 @@ const groq = new Groq({
 });
 
 const db = require('../db');
+const socketService = require('./socket.service');
 
 async function getChatResponse(message, conversationId, options = {}) {
   // Lấy lịch sử từ DB SQLite
@@ -156,6 +157,7 @@ Chào ngắn + Hỏi 1 câu khám phá nhu cầu.
 
     if (forceHuman) {
        // Phát tín hiệu cho Dashboard qua Socket (đã có logic ở app.js xử lý status hội thoại)
+       socketService.emitHandoverAlert(conversationId, 'Phát hiện khiếu nại nóng hoặc Khách hàng VIP cần hỗ trợ');
     }
 
     return { 

@@ -77,4 +77,65 @@ router.post('/conversations/:id/outcome', (req, res) => {
   }
 });
 
+// --- MỚI: QUẢN LÝ SẢN PHẨM (KNOWLEDGE BASE) ---
+
+// Lấy danh sách sản phẩm
+router.get('/products', (req, res) => {
+  try {
+    const products = db.prepare('SELECT * FROM products ORDER BY created_at DESC').all();
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Thêm/Cập nhật sản phẩm
+router.post('/products', (req, res) => {
+  try {
+    const { id, name, price, variants, fits_who, occasion, selling_points, style_tip } = req.body;
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO products (id, name, price, variants, fits_who, occasion, selling_points, style_tip)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, name, price, JSON.stringify(variants), fits_who, occasion, JSON.stringify(selling_points), style_tip);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Xóa sản phẩm
+router.delete('/products/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- MỚI: QUẢN LÝ KHÁCH HÀNG (CRM) ---
+
+// Lấy danh sách khách hàng
+router.get('/customers', (req, res) => {
+  try {
+    const customers = db.prepare('SELECT * FROM customers ORDER BY total_orders DESC').all();
+    res.json(customers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cập nhật trạng thái khách hàng (VIP/Blacklist)
+router.post('/customers/:id/status', (req, res) => {
+  try {
+    const { status, priority_level } = req.body;
+    if (status) db.prepare('UPDATE customers SET status = ? WHERE id = ?').run(status, req.params.id);
+    if (priority_level) db.prepare('UPDATE customers SET priority_level = ? WHERE id = ?').run(priority_level, req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

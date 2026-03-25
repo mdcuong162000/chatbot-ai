@@ -3,203 +3,491 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Huy OS - Omnichannel Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Huy Enterprise OS - Admin Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
-            --bg: #0f172a; --panel-bg: rgba(255, 255, 255, 0.03); 
-            --border: rgba(255, 255, 255, 0.1); --text: #f1f5f9;
-            --primary: #6366f1; --danger: #ef4444; --success: #10b981;
+            --bg-dark: #09090b;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.3);
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text-main: #fafafa;
+            --text-dim: #a1a1aa;
+            --sidebar-width: 80px;
+            --list-width: 320px;
         }
-        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
-        header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; background: rgba(0,0,0,0.2); }
-        .main-container { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 300px; border-right: 1px solid var(--border); background: var(--panel-bg); overflow-y: auto; }
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
-        .chat-history { flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; }
-        .chat-input { padding: 16px; border-top: 1px solid var(--border); background: var(--panel-bg); display: flex; gap: 10px; }
-        .chat-input input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: white; }
-        .context-panel { width: 320px; border-left: 1px solid var(--border); background: var(--panel-bg); padding: 24px; }
-        
-        .conv-item { padding: 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
-        .conv-item:hover { background: rgba(255,255,255,0.05); }
-        .conv-item.active { border-left: 4px solid var(--primary); background: rgba(99, 102, 241, 0.1); }
-        
-        .msg { margin-bottom: 16px; max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.4; }
-        .msg.user { background: rgba(255,255,255,0.1); align-self: flex-start; }
-        .msg.ai { background: rgba(99, 102, 241, 0.2); border: 1px solid var(--primary); align-self: flex-end; margin-left: auto; }
-        .msg.human { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); align-self: flex-end; margin-left: auto; }
 
-        .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; }
-        .btn-primary { background: var(--primary); }
-        .btn-danger { background: var(--danger); }
-        .btn-success { background: var(--success); }
-        
-        .card { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border); }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.1); }
-        .badge.alert { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--danger); }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        h1, h2, h3 { font-family: 'Outfit', sans-serif; margin: 0; }
+
+        /* Sidebar Navigation */
+        .nav-sidebar {
+            width: var(--sidebar-width);
+            background: rgba(0,0,0,0.4);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 0;
+            gap: 32px;
+        }
+
+        .nav-icon {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-dim);
+            font-size: 20px;
+        }
+
+        .nav-icon:hover { background: var(--glass-bg); color: white; }
+        .nav-icon.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* Main Content Container */
+        .main-stage {
+            flex: 1;
+            display: flex;
+            background: radial-gradient(circle at top right, rgba(99,102,241,0.05), transparent);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            flex: 1;
+            width: 100%;
+        }
+        .tab-content.active { display: flex; }
+
+        /* INBOX TAB STYLES */
+        .list-panel {
+            width: var(--list-width);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            background: rgba(255,255,255,0.01);
+        }
+
+        .panel-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .scrollable { overflow-y: auto; flex: 1; }
+        .conv-card {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .conv-card:hover { background: var(--glass-bg); }
+        .conv-card.active { background: rgba(99,102,241,0.1); border-left: 3px solid var(--primary); }
+
+        .chat-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .msg {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 16px;
+            line-height: 1.5;
+            font-size: 14.5px;
+        }
+        .msg.user { background: var(--glass-bg); border: 1px solid var(--glass-border); align-self: flex-start; }
+        .msg.ai { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99,102,241,0.3); align-self: flex-end; }
+        .msg.human { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); align-self: flex-end; }
+
+        .chat-input-area {
+            padding: 24px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: white;
+            outline: none;
+        }
+
+        .chat-input-area input:focus { border-color: var(--primary); }
+
+        /* CRM & PRODUCT TAB STYLES */
+        .full-tab {
+            padding: 40px;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: transform 0.3s;
+        }
+        .card:hover { transform: translateY(-5px); }
+
+        .btn {
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Outfit';
+            transition: 0.3s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-success { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success); }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-vip { background: #fde68a; color: #92400e; }
+        .badge-alert { background: var(--danger); color: white; }
+
+        /* Tooltip style CRM context */
+        .crm-context {
+            width: 300px;
+            background: rgba(0,0,0,0.3);
+            border-left: 1px solid var(--glass-border);
+            padding: 24px;
+        }
+
+        /* Modal Overlay */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #18181b;
+            width: 500px;
+            padding: 32px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 13px; }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            background: #09090b;
+            border: 1px solid var(--glass-border);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <header>
-        <h2>🕹️ Huy OS / Omnichannel Control</h2>
-        <div>Trạng thái hệ thống: <span style="color:var(--success)">● Online</span></div>
-    </header>
-    
-    <div class="main-container">
-        <!-- Sidebar: Danh sách khách -->
-        <div class="sidebar" id="conv-list">
-            <div style="padding: 16px; font-weight: 600; opacity: 0.7; border-bottom: 1px solid var(--border);">Inbox đang mở</div>
-            <div id="conversations-container">
-                <!-- Data API đổ vào đây -->
+
+    <!-- Sidebar Navigation -->
+    <div class="nav-sidebar">
+        <div class="nav-icon active" onclick="switchTab('inbox')" title="Inbox">📥</div>
+        <div class="nav-icon" onclick="switchTab('products')" title="Inventory">📦</div>
+        <div class="nav-icon" onclick="switchTab('crm')" title="Customers">👥</div>
+        <div class="nav-icon" onclick="switchTab('settings')" title="Settings">⚙️</div>
+    </div>
+
+    <!-- MAIN STAGE -->
+    <div class="main-stage">
+        
+        <!-- TAB: INBOX -->
+        <div id="tab-inbox" class="tab-content active">
+            <div class="list-panel">
+                <div class="panel-header">
+                    <h3>Hội thoại gần đây</h3>
+                </div>
+                <div class="scrollable" id="conv-list">
+                    <!-- Data Dynamic -->
+                </div>
+            </div>
+            <div class="chat-view">
+                <div class="panel-header" id="chat-header">
+                    <h3>Chọn một hội thoại để bắt đầu</h3>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <!-- History Dynamic -->
+                </div>
+                <div class="chat-input-area" id="chat-footer" style="display:none">
+                    <button class="btn btn-danger" onclick="takeoverBot()">Takeover AI</button>
+                    <input type="text" id="admin-input" placeholder="Gõ câu trả lời của sếp...">
+                    <button class="btn btn-primary" onclick="sendMessage()">Gửi</button>
+                </div>
+            </div>
+            <div class="crm-context" id="crm-panel">
+                <h3>Chi tiết khách</h3>
+                <div id="crm-details" style="margin-top:20px; color:var(--text-dim); font-size:14px;">
+                    Chưa có dữ liệu.
+                </div>
             </div>
         </div>
 
-        <!-- Cửa sổ Chat -->
-        <div class="chat-area">
-            <div class="chat-history" id="chat-history">
-                <div class="msg user">Chào bạn, dự án Lumiere này giá nhiêu em?</div>
-                <div class="msg ai">Dạ anh chị tham khảo căn 2PN giá từ 3.5 tỷ ạ. Hiện tại Cường đang có chính sách ân hạn nợ gốc 24 tháng 0% lãi. Mình mua ở hay đầu tư ạ? 🫡</div>
-                <div class="msg user">Cho mình xem mặt bằng nhé</div>
-            </div>
-            <div class="chat-input">
-                <button class="btn btn-danger" onclick="takeOver()">🛑 Dừng AI (Take-over)</button>
-                <input type="text" placeholder="Gõ trả lời tư cách Nhân viên thật..." id="admin-input">
-                <button class="btn btn-primary" onclick="sendHumanMessage()">Gửi (Human)</button>
+        <!-- TAB: PRODUCTS -->
+        <div id="tab-products" class="tab-content">
+            <div class="full-tab">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h1>Product Knowledge Base</h1>
+                    <button class="btn btn-primary" onclick="showProductModal()">+ Thêm Sản Phẩm</button>
+                </div>
+                <div class="grid" id="product-grid">
+                    <!-- Products Dynamic -->
+                </div>
             </div>
         </div>
 
-        <!-- Khung CRM Context -->
-        <div class="context-panel">
-            <h3>Hồ sơ Khách Hàng</h3>
-            <div class="card">
-                <p><strong>Khách:</strong> <span id="crm-id">Chưa chọn</span></p>
-                <p><strong>Nguồn:</strong> <span id="crm-src">Website/MXH</span></p>
-                <p><strong>Phễu mua hàng:</strong> <span class="badge" style="background:#f59e0b; color:#fff" id="crm-stage">...</span></p>
+        <!-- TAB: CRM -->
+        <div id="tab-crm" class="tab-content">
+            <div class="full-tab">
+                <h1>Customer Relationship Management</h1>
+                <div class="grid" id="customer-grid">
+                    <!-- Customers Dynamic -->
+                </div>
             </div>
+        </div>
 
-            <h3>AI Insights (Pattern)</h3>
-            <div class="card" style="border-left: 3px solid var(--primary)">
-                <p style="font-size: 14px; opacity: 0.9; line-height: 1.5;">
-                    💡 <strong>Gợi ý từ Máy học:</strong> Khách hỏi BĐS ở tầng 'Đàm phán', tỷ lệ chốt cao nhất (68%) nếu sếp dùng chiêu cọc giữ chỗ (FOMO) kèm chính sách vay 0%.
-                </p>
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <button class="btn btn-success" style="width: 100%;" onclick="tagOutcome(1)">💰 Gắn Tag: ĐÃ CHỐT ĐƠN</button>
-                <button class="btn" style="width: 100%; margin-top: 10px; background: rgba(255,255,255,0.1);" onclick="tagOutcome(0)">❌ Gắn Tag: KHÔNG MUA MẤT RỒI</button>
+    </div>
+
+    <!-- Modal Product -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Thêm Sản phẩm mới</h2>
+            <div style="margin-top:20px;">
+                <div class="form-group">
+                    <label>Mã ID (vd: serum_juni)</label>
+                    <input type="text" id="p-id">
+                </div>
+                <div class="form-group">
+                    <label>Tên sản phẩm</label>
+                    <input type="text" id="p-name">
+                </div>
+                <div class="form-group">
+                    <label>Giá (VNĐ/Baht)</label>
+                    <input type="number" id="p-price">
+                </div>
+                <div class="form-group">
+                    <label>Công dụng chính</label>
+                    <textarea id="p-who"></textarea>
+                </div>
+                <div style="display:flex; gap:12px; margin-top:20px;">
+                    <button class="btn" onclick="closeModal()">Hủy</button>
+                    <button class="btn btn-primary" onclick="saveProduct()">Lưu sản phẩm</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let currentConvId = null;
+        let currentTab = 'inbox';
+        let activeConvId = null;
 
-        // Fetch danh sách khách hàng từ DB
-        async function fetchConversations() {
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            if (tab === 'products') loadProducts();
+            if (tab === 'crm') loadCustomers();
+            if (tab === 'inbox') loadConversations();
+        }
+
+        // --- INBOX LOGIC ---
+        async function loadConversations() {
             const res = await fetch('/api/admin/conversations');
             const data = await res.json();
-            const container = document.getElementById('conversations-container');
-            container.innerHTML = '';
-            
-            data.forEach(conv => {
-                const isHumanAlert = conv.status === 'human_takeover';
-                let html = `
-                <div class="conv-item ${currentConvId === conv.id ? 'active' : ''}" onclick="loadMessages('${conv.id}', '${conv.name}', '${conv.stage}')">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <strong>${conv.name} (${conv.channel})</strong>
-                        <span class="badge ${isHumanAlert ? 'alert' : ''}" style="${!isHumanAlert ? 'background:var(--success)' : ''}">${isHumanAlert ? 'Sale Needed' : 'AI Active'}</span>
+            const container = document.getElementById('conv-list');
+            container.innerHTML = data.map(c => `
+                <div class="conv-card ${activeConvId === c.id ? 'active' : ''}" onclick="selectConv('${c.id}', '${c.name}', '${c.status}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>${c.name}</strong>
+                        <span class="badge ${c.status === 'human_takeover' ? 'badge-alert' : ''}" style="font-size:9px">
+                            ${c.status === 'human_takeover' ? 'ALERT' : c.channel}
+                        </span>
                     </div>
-                </div>`;
-                container.innerHTML += html;
-            });
+                    <div style="font-size:12px; color:var(--text-dim); margin-top:6px;">${new Date(c.started_at).toLocaleString()}</div>
+                </div>
+            `).join('');
         }
 
-        // Fetch tin nhắn khi bấm vào khách
-        async function loadMessages(convId, name, stage) {
-            currentConvId = convId;
-            fetchConversations(); // highlight active
+        async function selectConv(id, name, status) {
+            activeConvId = id;
+            document.getElementById('chat-header').innerHTML = `<h3>Hội thoại với: ${name}</h3>`;
+            document.getElementById('chat-footer').style.display = 'flex';
+            loadConversations();
             
-            // Đổ Context Right-Panel
-            document.getElementById('crm-id').innerText = name;
-            document.getElementById('crm-stage').innerText = stage;
-
-            const res = await fetch(`/api/admin/conversations/${convId}/messages`);
+            const res = await fetch(`/api/admin/conversations/${id}/messages`);
             const msgs = await res.json();
-            const historyObj = document.getElementById('chat-history');
-            historyObj.innerHTML = '';
-            
-            msgs.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'msg ' + (m.role === 'user' ? 'user' : (m.role === 'system_human' ? 'human' : 'ai'));
-                div.innerText = m.content;
-                historyObj.appendChild(div);
-            });
-            historyObj.scrollTop = historyObj.scrollHeight;
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = msgs.map(m => `
+                <div class="msg ${m.role === 'user' ? 'user' : (m.role === 'system_human' ? 'human' : 'ai')}">
+                    ${m.content}
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
         }
 
-        // Chạy lần đầu
-        fetchConversations();
-
-        // Lắng nghe có tin nhắn mới thì báo màn hình
-        socket.on('new_message', (data) => {
-            fetchConversations(); // cập nhật list
-            if (data.conversationId === currentConvId) {
-                const history = document.getElementById('chat-history');
-                const div = document.createElement('div');
-                div.className = 'msg ' + (data.message.role === 'user' ? 'user' : 'ai');
-                div.innerText = data.message.content;
-                history.appendChild(div);
-                history.scrollTop = history.scrollHeight;
-            }
-        });
-
-        // Lắng nghe sự kiện cướp cờ
-        socket.on('handover_alert', (data) => {
-            fetchConversations();
-            alert(`🚨 AI BÁO ĐỘNG: Hội thoại ${data.conversationId} cần người thật!\nLý do: ${data.reason}`);
-        });
-
-        async function takeOver() {
-            if(!currentConvId) return alert("Chọn khách hàng trước khi bấm!");
-            await fetch(`/api/admin/conversations/${currentConvId}/takeover`, { method: 'POST' });
-            alert("Đã ngắt AI. Khách chỉ nhận được tin do Sale gõ tay.");
-            fetchConversations();
+        async function takeoverBot() {
+            if (!activeConvId) return;
+            await fetch(`/api/admin/conversations/${activeConvId}/takeover`, { method: 'POST' });
+            alert('Đã chặn AI. Sếp toàn quyền trả lời!');
+            loadConversations();
         }
 
-        async function sendHumanMessage() {
+        async function sendMessage() {
             const input = document.getElementById('admin-input');
             const txt = input.value.trim();
-            if(!txt || !currentConvId) return;
-            
-            await fetch(`/api/admin/conversations/${currentConvId}/messages`, {
+            if (!txt || !activeConvId) return;
+            await fetch(`/api/admin/conversations/${activeConvId}/messages`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ content: txt })
             });
-
-            const history = document.getElementById('chat-history');
-            const div = document.createElement('div');
-            div.className = 'msg human';
-            div.innerText = txt;
-            history.appendChild(div);
-            history.scrollTop = history.scrollHeight;
             input.value = '';
+            selectConv(activeConvId, '...', '...');
         }
 
-        async function tagOutcome(hasPurchased) {
-            if(!currentConvId) return alert("Chọn khách hàng trước khi Tag!");
-            if(confirm('Chắc chắn gắn kết quả: ' + (hasPurchased ? 'MUA HÀNG' : 'THẤT BẠI') + '?')) {
-                await fetch(`/api/admin/conversations/${currentConvId}/outcome`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ has_purchased: hasPurchased })
-                });
-                alert('Đã cập nhật tỷ lệ chốt thành công!');
-            }
+        // --- PRODUCT LOGIC ---
+        async function loadProducts() {
+            const res = await fetch('/api/admin/products');
+            const data = await res.json();
+            const container = document.getElementById('product-grid');
+            container.innerHTML = data.map(p => `
+                <div class="card">
+                    <h3>${p.name}</h3>
+                    <p style="color:var(--primary); font-weight:700; font-size:1.2em; margin:10px 0;">${p.price}B</p>
+                    <p style="font-size:13px; color:var(--text-dim);">${p.fits_who}</p>
+                    <div style="margin-top:20px; display:flex; gap:10px;">
+                        <button class="btn" style="background:var(--glass-bg); color:white">Sửa</button>
+                        <button class="btn btn-danger" onclick="deleteProduct('${p.id}')">Xóa</button>
+                    </div>
+                </div>
+            `).join('');
         }
+
+        function showProductModal() { document.getElementById('product-modal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('product-modal').style.display = 'none'; }
+        
+        async function saveProduct() {
+            const body = {
+                id: document.getElementById('p-id').value,
+                name: document.getElementById('p-name').value,
+                price: document.getElementById('p-price').value,
+                fits_who: document.getElementById('p-who').value,
+                variants: [],
+                selling_points: []
+            };
+            await fetch('/api/admin/products', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            closeModal();
+            loadProducts();
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Xóa vĩnh viễn sản phẩm này?')) return;
+            await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+            loadProducts();
+        }
+
+        // --- CRM LOGIC ---
+        async function loadCustomers() {
+            const res = await fetch('/api/admin/customers');
+            const data = await res.json();
+            const container = document.getElementById('customer-grid');
+            container.innerHTML = data.map(c => `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <h3>${c.name}</h3>
+                        ${c.priority_level === 'VIP' ? '<span class="badge badge-vip">VIP</span>' : ''}
+                    </div>
+                    <p style="font-size:14px; color:var(--text-dim); margin:8px 0;">SĐT: ${c.phone || 'N/A'}</p>
+                    <p style="font-size:12px; margin:4px 0;">Tổng đơn: <strong>${c.total_orders}</strong></p>
+                    <p style="font-size:11px; color:var(--primary)">Trạng thái: ${c.status}</p>
+                    <div style="margin-top:20px; display:flex; gap:8px;">
+                        <button class="btn btn-success" onclick="updateCust('${c.id}', null, 'VIP')">Lên VIP</button>
+                        <button class="btn btn-danger" onclick="updateCust('${c.id}', 'blacklist', null)">Chặn</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateCust(id, status, priority) {
+            await fetch(`/api/admin/customers/${id}/status`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ status, priority_level: priority })
+            });
+            loadCustomers();
+        }
+
+        // Socket Alerts
+        socket.on('new_message', () => { if(currentTab==='inbox') loadConversations(); });
+
+        loadConversations();
     </script>
 </body>
 </html>
