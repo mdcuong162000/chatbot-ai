@@ -221,10 +221,6 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <h2 style="font-size: 20px;">Huy Enterprise</h2>
-            <select class="market-switcher" id="global-market" onchange="switchGlobalMarket(this.value)">
-                <option value="TH">🇹🇭 Thái Lan (TH)</option>
-                <option value="VN">🇻🇳 Việt Nam (VN)</option>
-            </select>
         </div>
 
         <nav class="nav-menu">
@@ -396,6 +392,16 @@
                         <input type="number" id="s-threshold" style="margin-top:10px" onchange="updateSetting('escalate_threshold', this.value)">
                         <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">Giá trị đơn hàng khởi phát chuyển giao cho sếp.</p>
                     </div>
+                    <div class="faq-card">
+                        <h3>Thị trường hoạt động</h3>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <select id="s-market" onchange="updateSetting('market_code', this.value)">
+                                <option value="TH">🇹🇭 Thái Lan (TH)</option>
+                                <option value="VN">🇻🇳 Việt Nam (VN)</option>
+                            </select>
+                        </div>
+                        <p style="font-size:11px; color:var(--text-dim); margin-top:8px;">Xác định kịch bản và tiền tệ AI sẽ sử dụng cho toàn hệ thống.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -467,7 +473,8 @@
             activeMarket = val;
             localStorage.setItem('active_market', val);
             // Reload current module with new market context
-            switchModule(currentModule, document.querySelector(`.nav-item.active`));
+            if (currentModule === 'training') loadFaqs();
+            if (currentModule === 'inventory') loadProducts();
         }
 
         function closeAllModals() {
@@ -641,10 +648,16 @@
             document.getElementById('s-temp').value = s.ai_temperature || 0.7;
             document.getElementById('temp-val').innerText = s.ai_temperature || 0.7;
             document.getElementById('s-threshold').value = s.escalate_threshold || 5000000;
+            if (document.getElementById('s-market')) {
+                document.getElementById('s-market').value = s.market_code || 'TH';
+                activeMarket = s.market_code || 'TH';
+            }
         }
 
         async function updateSetting(key, value) {
             if (key === 'ai_temperature') document.getElementById('temp-val').innerText = value;
+            if (key === 'market_code') switchGlobalMarket(value);
+            
             await fetch('/api/admin/settings/update', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -654,7 +667,7 @@
 
         // Initial Boot
         loadConversations();
-        document.getElementById('global-market').value = activeMarket;
+        loadSettings(); // Ensure settings (like market_code) are loaded first
     </script>
 </body>
 </html>

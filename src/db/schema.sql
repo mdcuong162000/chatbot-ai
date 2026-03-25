@@ -78,6 +78,7 @@ INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ai_persona', 'Huy - 
 INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ai_temperature', '0.7');
 INSERT OR IGNORE INTO system_settings (key, value) VALUES ('escalate_threshold', '5000000');
 INSERT OR IGNORE INTO system_settings (key, value) VALUES ('enable_auto_notifications', '1');
+INSERT OR IGNORE INTO system_settings (key, value) VALUES ('market_code', 'TH');
 
 -- Khiếu nại (Enterprise)
 CREATE TABLE IF NOT EXISTS complaints (

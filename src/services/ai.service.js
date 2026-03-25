@@ -25,8 +25,9 @@ async function getChatResponse(message, conversationId, options = {}) {
   const customerMeta = customerId ? memoryService.getCustomerMetadata(customerId) : null;
 
 
-  // [PHASE 7] Xác định thị trường & ngành hàng (Demo mặc định TH)
-  const marketCode = options.marketCode || 'TH';
+  // [PHASE 7] Xác định thị trường & ngành hàng từ Cài đặt hệ thống
+  const settings = await getSettings();
+  const marketCode = options.marketCode || settings.market_code || 'TH';
   const industry = options.industry || 'general';
 
   // Tìm sản phẩm & FAQ liên quan để BƠM KIẾN THỨC (Hybrid Knowledge)
