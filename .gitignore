@@ -7,3 +7,6 @@ src/db/chatbot.db-journal
 
 # Bỏ qua não bộ AI
 .agent/
+.agent/
+.agent/
+.agent/
