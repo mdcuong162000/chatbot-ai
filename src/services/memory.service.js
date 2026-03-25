@@ -30,6 +30,44 @@ class MemoryService {
   }
 
   /**
+   * Truy vết và Gộp khách hàng (Cross-Channel Identity)
+   */
+  extractAndMergeCustomer(conversationId, content) {
+    // Regex tìm SĐT VN (Ví dụ: 0901234567, 038...)
+    const phoneRegex = /(0[3|5|7|8|9])+([0-9]{8})\b/g;
+    const match = content.match(phoneRegex);
+    if (!match) return;
+    
+    const phone = match[0];
+    
+    // Lấy customer_id hiện tại từ conversationId
+    const conv = db.prepare('SELECT customer_id FROM conversations WHERE id = ?').get(conversationId);
+    if (!conv) return;
+    const currentCustId = conv.customer_id;
+    
+    // Kiểm tra xem SĐT này đã có ai (kênh khác) đăng ký chưa
+    const existingCust = db.prepare('SELECT id FROM customers WHERE phone = ? AND id != ?').get(phone, currentCustId);
+    
+    if (existingCust) {
+      const targetId = existingCust.id;
+      // Gộp data: Chuyển toàn bộ hội thoại và lịch sử chốt đơn sang targetId
+      db.prepare('UPDATE conversations SET customer_id = ? WHERE customer_id = ?').run(targetId, currentCustId);
+      
+      // Bảng outcomes có thể chưa có customer_id, nhưng update an toàn (nếu scheme có sẵn)
+      try {
+        db.prepare('UPDATE outcomes SET customer_id = ? WHERE customer_id = ?').run(targetId, currentCustId);
+      } catch (e) { /* ignore nếu schema cũ chưa có customer_id */ }
+      
+      // Xóa profile ảo hiện tại
+      db.prepare('DELETE FROM customers WHERE id = ?').run(currentCustId);
+      console.log(`[MERGE IDENTITY] Đã gộp lịch sử Khách ${currentCustId} vào ${targetId} qua SĐT ${phone}`);
+    } else {
+      // Lưu lại SĐT cho user hiện tại nếu chưa có
+      db.prepare('UPDATE customers SET phone = ? WHERE id = ? AND phone IS NULL').run(phone, currentCustId);
+    }
+  }
+
+  /**
    * Lưu tin nhắn vào DB
    */
   logMessage(conversationId, role, content) {
@@ -38,6 +76,15 @@ class MemoryService {
       INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, ?, ?)
     `);
     stmt.run(id, conversationId, role, content);
+
+    // Kích hoạt Định danh Xuyên kênh khi User nhắn
+    if (role === 'user') {
+      try {
+        this.extractAndMergeCustomer(conversationId, content);
+      } catch (err) {
+        console.error('Lỗi khi Merge Identity:', err);
+      }
+    }
   }
 
   /**
