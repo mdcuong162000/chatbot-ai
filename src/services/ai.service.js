@@ -78,7 +78,7 @@ async function getGroqResponse(message, history = [], productContext = '', custo
     let forceHuman = false;
 
     // BƯỚC 3: Phát hiện từ khóa khiếu nại (Mục 8 - Bước 3)
-    const complaintKeywords = ['lỗi','hỏng','sai','thiếu','chưa nhận','mất hàng','hoàn tiền','trả hàng','kiện','luật sư','báo công an','tức','bực','thất vọng'];
+    const complaintKeywords = ['lỗi','hỏng','sai','thiếu','chưa nhận','mất hàng','hoàn tiền','trả hàng','kiện','luật sư','báo công an','tức','bực','thất vọng','vỡ','móp','tệ','fake','nhái','lừa','không giống','ngứa','dị ứng','đỏ rát'];
     const hasComplaintKeyword = complaintKeywords.some(kw => message.toLowerCase().includes(kw));
     
     if (hasComplaintKeyword && !customerMeta?.active_complaint) {
