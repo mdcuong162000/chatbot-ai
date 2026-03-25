@@ -64,6 +64,25 @@ class NotificationService {
   }
 
   /**
+   * TRIGGER 5: Upsell cho khách cũ (30 ngày sau đơn cuối)
+   */
+  async triggerUpsells() {
+    const oldCustomers = db.prepare(`
+      SELECT c.id as customer_id, c.name
+      FROM customers c
+      WHERE c.total_orders > 0
+      AND c.last_purchase_date <= datetime('now', '-30 days')
+    `).all();
+
+    for (const c of oldCustomers) {
+      if (this.canSendNotification(c.customer_id)) {
+        const message = `Chào ${c.name}! Lọ serum sâm đen đợt trước mình dùng chắc cũng sắp hết rồi sếp nhỉ? Bên em đang có ưu đãi 1+1 cho khách cũ, mình có muốn lấy thêm không ạ?`;
+        this.sendOutbound(c.customer_id, message, 'upsell');
+      }
+    }
+  }
+
+  /**
    * KIỂM TRA 4 LỚP CHỐNG SPAM (Mục 7 - Lớp kiểm tra)
    */
   canSendNotification(customerId) {
