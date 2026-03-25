@@ -1,3 +1,9 @@
+---
+Type: Constitution
+Status: Supreme
+Tags: [#constitution, #identity]
+---
+
 # 🚀 ANTIGRAVITY CONSTITUTION — Universal Engineering Standard
 
 > [!IMPORTANT]
