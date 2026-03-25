@@ -48,10 +48,18 @@ async function getChatResponse(message, conversationId, options = {}) {
 
   // Ưu tiên dùng Groq
   try {
-    return await getGroqResponse(message, history, productContext, customerMeta, options, conversationId);
+    const aiResult = await getGroqResponse(message, history, productContext, customerMeta, options, conversationId);
+    
+    // Nếu AI phát tín hiệu cần người thật -> cập nhật DB ngay
+    if (aiResult.forceHuman) {
+      memoryService.updateConversationStatus(conversationId, 'human_takeover');
+    }
+
+    return aiResult.reply;
   } catch (error) {
     console.warn('Groq Error, falling back to OpenAI...', error.message);
-    return await getOpenAIResponse(message, history, productContext, customerMeta, options);
+    const aiResult = await getOpenAIResponse(message, history, productContext, customerMeta, options);
+    return aiResult; // OpenAI hiện chưa có logic forceHuman phức tạp
   }
 }
 
@@ -140,14 +148,14 @@ Chào ngắn + Hỏi 1 câu khám phá nhu cầu.
       model: 'llama-3.3-70b-versatile',
     });
 
-    let reply = chatCompletion.choices[0].message.content;
-    
     if (forceHuman) {
        // Phát tín hiệu cho Dashboard qua Socket (đã có logic ở app.js xử lý status hội thoại)
-       // Ở đây mình trả về reply, router sẽ lo việc cập nhật status DB sau.
     }
 
-    return reply;
+    return { 
+      reply: chatCompletion.choices[0].message.content, 
+      forceHuman 
+    };
 
   } catch (error) {
     console.error('Groq Service Error:', error.message);
