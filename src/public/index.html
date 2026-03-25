@@ -201,7 +201,13 @@
         const chatWindow = document.getElementById('chat-window');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
-        let history = [];
+        
+        // Sinh ra ID độc nhất và lưu vĩnh viễn vào trình duyệt (Thay vì dùng IP dễ bị đụng hàng ở Wifi công cộng)
+        let customerId = localStorage.getItem('huy_chatbot_id');
+        if (!customerId) {
+            customerId = 'web_' + Math.random().toString(36).substring(2, 12);
+            localStorage.setItem('huy_chatbot_id', customerId);
+        }
 
         async function sendMessage() {
             const message = userInput.value.trim();
@@ -222,7 +228,7 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, history })
+                    body: JSON.stringify({ message, customerId })
                 });
 
                 const data = await response.json();
@@ -230,8 +236,6 @@
 
                 if (data.reply) {
                     addMessage(data.reply, 'ai');
-                    history.push({ role: 'user', content: message });
-                    history.push({ role: 'assistant', content: data.reply });
                 } else {
                     addMessage('Có lỗi xảy ra sếp ơi! 🤖', 'ai');
                 }
