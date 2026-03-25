@@ -1,3 +1,4 @@
+console.log('--- STARTING HUY CHATBOT OS ---');
 const app = require('./src/app');
 const config = require('./src/config/env');
 const http = require('http');

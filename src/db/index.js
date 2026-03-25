@@ -2,13 +2,15 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'chatbot.db');
+const dbPath = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production' 
+  ? '/tmp/chatbot.db' 
+  : path.join(__dirname, 'chatbot.db');
 const schemaPath = path.join(__dirname, 'schema.sql');
 
+console.log(`[DB] Khởi tạo database tại: ${dbPath}`);
+
 // Khởi tạo kết nối DB
-const db = new Database(dbPath, { 
-//  verbose: console.log // Uncomment để debug SQL
-});
+const db = new Database(dbPath);
 
 // Hàm khởi tạo database
 function initDatabase() {
