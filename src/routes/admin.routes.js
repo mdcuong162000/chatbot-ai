@@ -35,4 +35,46 @@ router.get('/conversations/:id/messages', (req, res) => {
   }
 });
 
+// Dừng AI (Take-over)
+router.post('/conversations/:id/takeover', (req, res) => {
+  try {
+    db.prepare("UPDATE conversations SET status = 'human_takeover' WHERE id = ?").run(req.params.id);
+    res.json({ success: true, message: 'Đã cướp cờ từ AI' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gửi tin nhắn từ Nhân viên (Người thật)
+router.post('/conversations/:id/messages', (req, res) => {
+  try {
+    const { content } = req.body;
+    db.prepare(`
+      INSERT INTO messages (conversation_id, role, content) 
+      VALUES (?, 'system_human', ?)
+    `).run(req.params.id, content);
+    
+    // Thực tế nếu có endpoint Gửi về FB/Zalo thì móc vào đây!
+    // Gửi qua socket.io cho Web client (Chatbot Index)
+    const socketService = require('../services/socket.service');
+    socketService.emitNewMessage(req.params.id, { role: 'assistant', content });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gắn Tag Outcome (Chốt đơn / Trượt)
+router.post('/conversations/:id/outcome', (req, res) => {
+  try {
+    const { has_purchased, notes } = req.body;
+    const outcomeService = require('../services/outcome.service');
+    outcomeService.logOutcome(req.params.id, has_purchased, notes || 'Manual Tagging');
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
