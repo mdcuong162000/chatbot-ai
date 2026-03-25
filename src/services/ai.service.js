@@ -96,10 +96,16 @@ BƯỚC 3: Đưa hướng xử lý (Bên em có thể đổi mới hoặc hoàn 
 BƯỚC 4: Xác nhận & Đóng.
 Mục tiêu: Xoa dịu + Giải quyết.`;
         
-        // BƯỚC 4: VIP & Escalation (Mục 8 - Bước 4)
-        if (customerMeta?.priority_level === 'VIP' || message.toLowerCase().includes('kiện') || message.toLowerCase().includes('công an')) {
+        // Phát hiện thêm từ khóa escalate nóng
+        if (message.toLowerCase().includes('kiện') || message.toLowerCase().includes('công an')) {
            forceHuman = true;
         }
+    } else if (customerMeta?.priority_level === 'VIP') {
+        // BƯỚC 4: VIP (Mục 8 - Bước 4) - Luôn ưu tiên người thật cho VIP
+        systemInstruction = `# CHẾ ĐỘ VIP
+Khách hàng VIP: ${customerMeta.name}.
+Hệ thống sẽ chuyển cho quản lý ngay. Hãy chào đón nồng nhiệt và nói câu chuyển tiếp.`;
+        forceHuman = true;
     } else {
         // BƯỚC 5: Phân loại Mới/Tiềm năng/Cũ (Mục 8 - Bước 5)
         const isBought = customerMeta && customerMeta.total_orders > 0;
