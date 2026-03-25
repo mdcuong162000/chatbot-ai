@@ -103,6 +103,30 @@ class MemoryService {
       ) ORDER BY created_at ASC
     `);
     return stmt.all(conversationId, limit);
+  /**
+   * Lấy thông tin khách hàng (phục vụ Prompt Khách cũ)
+   */
+  getCustomerMetadata(customerId) {
+    const customer = db.prepare('SELECT phone, stage, total_orders FROM customers WHERE id = ?').get(customerId);
+    if (!customer) return null;
+
+    // Lấy lịch sử sản phẩm đã mua từ outcomes
+    const purchases = db.prepare(`
+      SELECT p.name, o.created_at 
+      FROM outcomes o
+      JOIN products p ON o.product_id = p.id
+      WHERE o.customer_id = ? AND o.result = 'bought'
+      ORDER BY o.created_at DESC
+    `).all(customerId);
+
+    return {
+      phone: customer.phone,
+      stage: customer.stage,
+      total_orders: customer.total_orders,
+      purchased_products: purchases.map(p => p.name).join(', '),
+      last_purchase_date: purchases.length > 0 ? purchases[0].created_at : 'Chưa có',
+      purchase_history: purchases.map(p => \`\${p.name} (\${p.created_at})\`).join('; ')
+    };
   }
 }
 
