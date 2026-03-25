@@ -23,8 +23,26 @@ CREATE TABLE IF NOT EXISTS customers (
   preferences TEXT,    -- JSON: sở thích đã biết
   stage TEXT DEFAULT 'nhan_thuc', -- Sales Funnel: nhan_thuc|quan_tam|danh_gia|dam_phan|da_mua|mua_lai
   stage_updated_at DATETIME,
+  status TEXT DEFAULT 'new_lead',
+  priority_level TEXT DEFAULT 'normal',
+  last_purchase_date DATETIME,
+  last_notification_at DATETIME,
   total_orders INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Khiếu nại (Enterprise)
+CREATE TABLE IF NOT EXISTS complaints (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  conversation_id TEXT NOT NULL,
+  type TEXT, -- san_pham, giao_hang, thanh_toan, thai_do
+  content TEXT,
+  status TEXT DEFAULT 'open', -- open, resolved
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME,
+  FOREIGN KEY(customer_id) REFERENCES customers(id),
+  FOREIGN KEY(conversation_id) REFERENCES conversations(id)
 );
 
 -- Cuộc hội thoại

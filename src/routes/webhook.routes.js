@@ -40,28 +40,11 @@ router.post('/facebook', async (req, res) => {
         // 1. Lấy/tạo hội thoại
         const conversationId = memoryService.getOrCreateConversation(senderPsid, 'facebook');
         
-        // --- Demo Inject Product ID (Thực tế sẽ parse từ bài viết khách click hoặc link) ---
-        const activeProducts = knowledgeService.getAllActiveProducts();
-        const demoProductId = activeProducts.length > 0 ? activeProducts[0].id : null;
-
-        // 2. Chặn Handover rules (Khách chữi, đòi người thật thì ngắt AI)
-        if (demoProductId) {
-          const handoverCheck = outcomeService.checkHandoverTriggers(conversationId, messageText, demoProductId);
-          if (handoverCheck.handover) {
-            console.warn(`[HANDOVER] Gọi người thật cho hội thoại ${conversationId}. Lý do: ${handoverCheck.reason}`);
-            // Đánh dấu DB trạng thái
-            const db = require('../db');
-            db.prepare("UPDATE conversations SET status = 'human_takeover' WHERE id = ?").run(conversationId);
-            
-            // Bắn realtime Notification cho Admin qua Socket (Sẽ làm sau)
-            
-            continue; // Bỏ qua không gọi AI nữa
-          }
-        }
-
-        // 3. Xử lý AI nếu ko vướng rule
+        // 2. Xử lý AI qua Router Logic (Mục 8 - Giai đoạn Enterprise)
+        // Router trong aiService sẽ tự động: detect Khiếu nại, VIP, Blacklist
+        // và tự động cập nhật status hội thoại thành 'human_takeover' nếu cần.
         memoryService.logMessage(conversationId, 'user', messageText);
-        
+ 
         try {
           const reply = await aiService.getChatResponse(messageText, conversationId);
           memoryService.logMessage(conversationId, 'assistant', reply);
