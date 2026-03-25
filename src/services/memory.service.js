@@ -103,6 +103,8 @@ class MemoryService {
       ) ORDER BY created_at ASC
     `);
     return stmt.all(conversationId, limit);
+  }
+
   /**
    * Lấy thông tin khách hàng (phục vụ Prompt Khách cũ)
    */
@@ -125,7 +127,7 @@ class MemoryService {
       total_orders: customer.total_orders,
       purchased_products: purchases.map(p => p.name).join(', '),
       last_purchase_date: purchases.length > 0 ? purchases[0].created_at : 'Chưa có',
-      purchase_history: purchases.map(p => \`\${p.name} (\${p.created_at})\`).join('; ')
+      purchase_history: purchases.map(p => `${p.name} (${p.created_at})`).join('; ')
     };
   }
 }
