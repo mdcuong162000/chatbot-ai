@@ -2,11 +2,19 @@ const db = require('../db');
 
 class KnowledgeService {
   /**
-   * Truy xuất toàn bộ sản phẩm đang active
+   * Truy xuất toàn bộ sản phẩm đang active (theo thị trường)
    */
-  getAllActiveProducts() {
-    const stmt = db.prepare('SELECT * FROM products WHERE is_active = 1');
-    return stmt.all().map(this._parseProductJSON);
+  getAllActiveProducts(marketCode = 'TH') {
+    const stmt = db.prepare('SELECT * FROM products WHERE is_active = 1 AND market_code = ?');
+    return stmt.all(marketCode).map(this._parseProductJSON);
+  }
+
+  /**
+   * Truy xuất toàn bộ FAQ đang active (theo thị trường)
+   */
+  getAllActiveFaqs(marketCode = 'TH', industry = 'general') {
+    const stmt = db.prepare('SELECT * FROM faqs WHERE is_active = 1 AND market_code = ? AND industry = ?');
+    return stmt.all(marketCode, industry);
   }
 
   /**
@@ -24,8 +32,8 @@ class KnowledgeService {
   createProduct(data) {
     const id = data.id || `prod_${Date.now()}`;
     const stmt = db.prepare(`
-      INSERT INTO products (id, name, price, variants, fits_who, occasion, selling_points, objections, style_tip, handover_rules, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (id, name, price, variants, fits_who, occasion, selling_points, objections, style_tip, handover_rules, market_code, industry, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -39,10 +47,44 @@ class KnowledgeService {
       data.objections ? JSON.stringify(data.objections) : null,
       data.style_tip,
       data.handover_rules ? JSON.stringify(data.handover_rules) : null,
+      data.market_code || 'TH',
+      data.industry || 'general',
       data.is_active !== undefined ? data.is_active : 1
     );
 
     return this.getProductById(id);
+  }
+
+  /**
+   * FAQ Management [NEW Phase 7]
+   */
+  createFaq(data) {
+    const id = `faq_${Date.now()}`;
+    const stmt = db.prepare(`
+      INSERT INTO faqs (id, question, answer, market_code, industry, is_active)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, data.question, data.answer, data.market_code || 'TH', data.industry || 'general', 1);
+    return { id, ...data };
+  }
+
+  getFaqById(id) {
+    return db.prepare('SELECT * FROM faqs WHERE id = ?').get(id);
+  }
+
+  /**
+   * Tag Management [NEW Phase 7]
+   */
+  getAllTagDefinitions() {
+    const tags = db.prepare('SELECT * FROM tag_definitions WHERE is_active = 1').all();
+    return tags.map(t => ({ ...t, fields: t.fields_json ? JSON.parse(t.fields_json) : [] }));
+  }
+
+  createTagDefinition(data) {
+    const id = `tag_${Date.now()}`;
+    const stmt = db.prepare('INSERT INTO tag_definitions (id, name, color, fields_json) VALUES (?, ?, ?, ?)');
+    stmt.run(id, data.name, data.color, JSON.stringify(data.fields || []));
+    return { id, ...data };
   }
 
   /**

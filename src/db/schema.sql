@@ -10,8 +10,42 @@ CREATE TABLE IF NOT EXISTS products (
   objections TEXT,      -- JSON: {"đắt quá": "..."}
   style_tip TEXT,
   handover_rules TEXT,  -- JSON per-product: {"price_threshold":500000,"max_bot_turns":10,"keywords":["lỗi","hoàn tiền"]}
+  market_code TEXT DEFAULT 'TH', -- 'TH', 'VN', etc.
+  industry TEXT DEFAULT 'general',
   is_active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- FAQ (Knowledge Base chung) [NEW Phase 7]
+CREATE TABLE IF NOT EXISTS faqs (
+  id TEXT PRIMARY KEY,
+  question TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  market_code TEXT DEFAULT 'TH',
+  industry TEXT DEFAULT 'general',
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Định nghĩa Tag linh hoạt (Dynamic Tags) [NEW Phase 7]
+CREATE TABLE IF NOT EXISTS tag_definitions (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  color TEXT,
+  fields_json TEXT, -- JSON định nghĩa các trường: [{"name":"sdt","type":"number","required":true}]
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Dữ liệu động theo Tag của khách [NEW Phase 7]
+CREATE TABLE IF NOT EXISTS customer_tag_data (
+  customer_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  values_json TEXT, -- JSON chứa giá trị sếp điền: {"sdt":"0389...","ngay_sinh":"1995-10-10"}
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (customer_id, tag_id),
+  FOREIGN KEY(customer_id) REFERENCES customers(id),
+  FOREIGN KEY(tag_id) REFERENCES tag_definitions(id)
 );
 
 -- Khách hàng

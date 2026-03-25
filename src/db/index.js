@@ -33,15 +33,32 @@ function initDatabase() {
 function seedInitialData() {
   console.log('[DB] Đang khởi tạo 100 kịch bản thực tế...');
   
-  // 1. Sản phẩm
+  // 1. Sản phẩm (Đa thị trường: VN & TH)
   const products = [
-    ['p1', 'LUNYS Black Ginseng Serum', 399, 'Da lão hóa, nhạy cảm'],
-    ['p2', 'LUNYS Whitening Cream', 450, 'Dưỡng trắng ban đêm'],
-    ['p3', 'JUNI Soft Cleanser', 199, 'Làm sạch dịu nhẹ'],
-    ['p4', 'JUNI Sun Screen', 299, 'Chống nắng phổ rộng']
+    ['p1', 'LUNYS Black Ginseng Serum', 399, 'Da lão hóa, nhạy cảm', 'VN', 'cosmetics'],
+    ['p2', 'LUNYS Whitening Cream', 450, 'Dưỡng trắng ban đêm', 'VN', 'cosmetics'],
+    ['th_p1', 'LUNYS Black Ginseng Serum (Thai)', 1500, 'Anti-aging, sensitive skin', 'TH', 'cosmetics'],
+    ['th_p2', 'JUNI Soft Cleanser (Thai)', 550, 'Gentle cleansing', 'TH', 'cosmetics']
   ];
-  const stmtP = db.prepare("INSERT OR REPLACE INTO products (id, name, price, fits_who, is_active) VALUES (?, ?, ?, ?, 1)");
+  const stmtP = db.prepare("INSERT OR REPLACE INTO products (id, name, price, fits_who, market_code, industry, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)");
   products.forEach(p => stmtP.run(...p));
+
+  // 1.1 Khởi tạo FAQs mẫu (Thái Lan) [PHASE 7]
+  const faqs = [
+    ['th_f1', 'Shop ở đâu?', 'Shop có chi nhánh tại Bangkok và Chiang Mai ạ!', 'TH', 'general'],
+    ['th_f2', 'Phí ship Thái Lan?', 'Nội thành Bangkok miễn phí, các tỉnh khác 50 Baht ạ.', 'TH', 'general'],
+    ['th_f3', 'Có COD không?', 'Dạ shop có hỗ trợ thanh toán khi nhận hàng (COD) toàn Thái Lan ạ.', 'TH', 'general']
+  ];
+  const stmtF = db.prepare("INSERT OR REPLACE INTO faqs (id, question, answer, market_code, industry, is_active) VALUES (?, ?, ?, ?, ?, 1)");
+  faqs.forEach(f => stmtF.run(...f));
+
+  // 1.2 Tag Định nghĩa mẫu [PHASE 7]
+  const tagDefs = [
+    ['tag_vip', 'Khách VIP', '#facc15', '[]'],
+    ['tag_bad', 'Spam/Bom hàng', '#ef4444', '[]']
+  ];
+  const stmtT = db.prepare("INSERT OR REPLACE INTO tag_definitions (id, name, color, fields_json, is_active) VALUES (?, ?, ?, ?, 1)");
+  tagDefs.forEach(t => stmtT.run(...t));
 
   // 2. 100 Khách hàng & Hội thoại
   const names = ['Hùng', 'Lan', 'Minh', 'Vy', 'Tuấn', 'Hạnh', 'An', 'Linh', 'Dũng', 'Thảo', 'Quân', 'Oanh', 'Bình', 'Thủy', 'Sơn', 'Hà', 'Nam', 'Trang', 'Đức', 'Phượng'];

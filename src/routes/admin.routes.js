@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const multer = require('multer');
+const xlsx = require('xlsx');
+const upload = multer({ dest: 'uploads/' });
 
 // Lấy danh sách toàn bộ các cuộc hội thoại (Kèm thông tin khách hàng)
 router.get('/conversations', (req, res) => {
@@ -108,12 +111,12 @@ router.get('/products', (req, res) => {
 // Thêm/Cập nhật sản phẩm
 router.post('/products', (req, res) => {
   try {
-    const { id, name, price, variants, fits_who, occasion, selling_points, style_tip } = req.body;
+    const { id, name, price, variants, fits_who, occasion, selling_points, style_tip, market_code, industry } = req.body;
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO products (id, name, price, variants, fits_who, occasion, selling_points, style_tip)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO products (id, name, price, variants, fits_who, occasion, selling_points, style_tip, market_code, industry)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(id, name, price, JSON.stringify(variants), fits_who, occasion, JSON.stringify(selling_points), style_tip);
+    stmt.run(id, name, price, JSON.stringify(variants), fits_who, occasion, JSON.stringify(selling_points), style_tip, market_code || 'TH', industry || 'general');
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -125,6 +128,108 @@ router.delete('/products/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- MỚI PHỐI HỢP PHA 7: QUẢN LÝ ĐÀO TẠO AI (FAQs) ---
+
+// Lấy danh sách FAQ
+router.get('/faqs', (req, res) => {
+  try {
+    const faqs = db.prepare('SELECT * FROM faqs ORDER BY created_at DESC').all();
+    res.json(faqs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Thêm/Cập nhật FAQ
+router.post('/faqs', (req, res) => {
+  try {
+    const { id, question, answer, market_code, industry } = req.body;
+    const faqId = id || `faq_${Date.now()}`;
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO faqs (id, question, answer, market_code, industry)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(faqId, question, answer, market_code || 'TH', industry || 'general');
+    res.json({ success: true, id: faqId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Xóa FAQ
+router.delete('/faqs/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM faqs WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Import FAQ từ Excel [PHASE 7 - Preny Feature]
+router.post('/faqs/import', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Không tìm thấy file' });
+    
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO faqs (id, question, answer, market_code, industry)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    let count = 0;
+    const transaction = db.transaction((items) => {
+      for (const item of items) {
+        // Hỗ trợ map cột linh hoạt: Câu hỏi/Question, Trả lời/Answer
+        const q = item.question || item['Câu hỏi'] || item.Question;
+        const a = item.answer || item['Trả lời'] || item.Answer;
+        const market = item.market_code || item['Thị trường'] || 'TH';
+        
+        if (q && a) {
+          stmt.run(`faq_ex_${Date.now()}_${count}`, q, a, market, 'general');
+          count++;
+        }
+      }
+    });
+
+    transaction(data);
+    res.json({ success: true, imported: count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- MỚI PHỐI HỢP PHA 7: QUẢN LÝ THẺ DYNAMIC (TAGS) ---
+
+// Lấy danh sách Tag định nghĩa
+router.get('/tags/definitions', (req, res) => {
+  try {
+    const tags = db.prepare('SELECT * FROM tag_definitions WHERE is_active = 1').all();
+    res.json(tags.map(t => ({ ...t, fields: JSON.parse(t.fields_json || '[]') })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Tạo/Cập nhật Tag định nghĩa
+router.post('/tags/definitions', (req, res) => {
+  try {
+    const { id, name, color, fields } = req.body;
+    const tagId = id || `tag_${Date.now()}`;
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO tag_definitions (id, name, color, fields_json)
+      VALUES (?, ?, ?, ?)
+    `);
+    stmt.run(tagId, name, color, JSON.stringify(fields || []));
+    res.json({ success: true, id: tagId });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
