@@ -1,4 +1,4 @@
-# 🚀 Mika Intelligence — Omnichannel AI Sales System
+# 🚀 Hệ Thống Chatbot AI — Omnichannel Sales Solution
 
 Mika Intelligence là hệ thống trợ lý bán hàng AI đa kênh, được tối ưu hóa cho thị trường Thái Lan và Việt Nam. Hệ thống mang lại trải nghiệm khách hàng tự nhiên, chuyên nghiệp và giúp tối ưu hóa tỷ lệ chuyển đổi.
 
