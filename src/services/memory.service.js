@@ -88,11 +88,19 @@ class MemoryService {
   }
 
   /**
-   * Lấy lịch sử (- N tin gần nhất)
+   * Lấy lịch sử (- N tin gần nhất: Context Window Manager)
+   * Giới hạn 10 tin để tránh vỡ Token LLM
    */
-  getHistory(conversationId, limit = 20) {
+  getHistory(conversationId, limit = 10) {
+    // Phải lấy tin mới nhất (ORDER BY DESC) sau đó đảo ngược dòng thời gian lại để LLM hiểu
     const stmt = db.prepare(`
-      SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ?
+      SELECT role, content FROM (
+        SELECT role, content, created_at 
+        FROM messages 
+        WHERE conversation_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT ?
+      ) ORDER BY created_at ASC
     `);
     return stmt.all(conversationId, limit);
   }
