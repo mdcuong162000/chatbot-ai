@@ -5,11 +5,11 @@ const knowledgeService = require('./knowledge.service');
 const memoryService = require('./memory.service');
 
 const openai = new OpenAI({
-  apiKey: config.openaiApiKey,
+  apiKey: config.openaiApiKey || 'mock-key-truoc-khi-chay-that',
 });
 
 const groq = new Groq({
-  apiKey: config.groqApiKey,
+  apiKey: config.groqApiKey || 'mock-key-truoc-khi-chay-that',
 });
 
 async function getChatResponse(message, conversationId, options = {}) {
