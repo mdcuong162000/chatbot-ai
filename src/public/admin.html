@@ -377,8 +377,9 @@
             document.getElementById('chat-footer').style.display = 'flex';
             loadConversations();
             
-            const res = await fetch(`/api/admin/conversations/${id}/messages`);
-            const msgs = await res.json();
+            // 1. Load Tin nhắn
+            const resMsg = await fetch(`/api/admin/conversations/${id}/messages`);
+            const msgs = await resMsg.json();
             const container = document.getElementById('chat-messages');
             container.innerHTML = msgs.map(m => `
                 <div class="msg ${m.role === 'user' ? 'user' : (m.role === 'system_human' ? 'human' : 'ai')}">
@@ -386,6 +387,28 @@
                 </div>
             `).join('');
             container.scrollTop = container.scrollHeight;
+
+            // 2. Load CRM Metadata cho Panel Phải
+            const resMeta = await fetch(`/api/admin/conversations/${id}/metadata`);
+            const meta = await resMeta.json();
+            const crmPanel = document.getElementById('crm-details');
+            if (meta) {
+                crmPanel.innerHTML = `
+                    <div class="card" style="margin-top:0">
+                        <p><strong>Loại khách:</strong> ${meta.status === 'new_lead' ? 'Mới' : 'Quen'}</p>
+                        <p><strong>Ưu tiên:</strong> <span class="badge ${meta.priority_level === 'VIP' ? 'badge-vip' : ''}">${meta.priority_level}</span></p>
+                        <p><strong>Tổng đơn:</strong> ${meta.total_orders}</p>
+                        <p><strong>Số điện thoại:</strong> ${meta.phone || 'Chưa có'}</p>
+                        <p><strong>Giai đoạn:</strong> ${meta.stage || 'Mới'}</p>
+                        <div style="margin-top:15px; border-top:1px solid var(--glass-border); padding-top:15px;">
+                            <button class="btn btn-success" style="width:100%; font-size:12px; margin-bottom:10px" onclick="updateCust('${meta.id}', null, 'VIP')">Lên VIP</button>
+                            <button class="btn btn-danger" style="width:100%; font-size:12px" onclick="updateCust('${meta.id}', 'blacklist', null)">Chặn (Blacklist)</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                crmPanel.innerHTML = "Lỗi tải dữ liệu khách.";
+            }
         }
 
         async function takeoverBot() {

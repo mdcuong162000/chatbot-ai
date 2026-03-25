@@ -19,6 +19,22 @@ router.get('/conversations', (req, res) => {
   }
 });
 
+// Lấy đầy đủ metadata khách hàng cho 1 hội thoại (Phục vụ Panel Phải - CRM)
+router.get('/conversations/:id/metadata', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT u.* 
+      FROM customers u
+      JOIN conversations c ON u.id = c.customer_id
+      WHERE c.id = ?
+    `);
+    const metadata = stmt.get(req.params.id);
+    res.json(metadata);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Lấy chi tiết tin nhắn của 1 hội thoại cụ thể
 router.get('/conversations/:id/messages', (req, res) => {
   try {
