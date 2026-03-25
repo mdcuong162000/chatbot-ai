@@ -152,6 +152,13 @@ class MemoryService {
     stmt.run(id, customerId, conversationId, content, type);
     return id;
   }
+
+  /**
+   * Cập nhật trạng thái hội thoại (Escalation)
+   */
+  updateConversationStatus(conversationId, status) {
+    db.prepare('UPDATE conversations SET status = ? WHERE id = ?').run(status, conversationId);
+  }
 }
 
 module.exports = new MemoryService();
