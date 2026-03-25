@@ -1,6 +1,6 @@
-node_modules
+node_modules/
 .env
+src/db/chatbot.db
+src/db/chatbot.db-journal
 .DS_Store
 *.log
-IDE_LIVE_STATUS.md
-.agent/context/telegram-history.json

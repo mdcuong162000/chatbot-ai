@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huy OS - Omnichannel Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --panel-bg: rgba(255, 255, 255, 0.03); 
+            --border: rgba(255, 255, 255, 0.1); --text: #f1f5f9;
+            --primary: #6366f1; --danger: #ef4444; --success: #10b981;
+        }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+        header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; background: rgba(0,0,0,0.2); }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 300px; border-right: 1px solid var(--border); background: var(--panel-bg); overflow-y: auto; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-history { flex: 1; padding: 24px; overflow-y: auto; }
+        .chat-input { padding: 16px; border-top: 1px solid var(--border); background: var(--panel-bg); display: flex; gap: 10px; }
+        .chat-input input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: white; }
+        .context-panel { width: 320px; border-left: 1px solid var(--border); background: var(--panel-bg); padding: 24px; }
+        
+        .conv-item { padding: 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .conv-item:hover { background: rgba(255,255,255,0.05); }
+        .conv-item.active { border-left: 4px solid var(--primary); background: rgba(99, 102, 241, 0.1); }
+        
+        .msg { margin-bottom: 16px; max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.4; }
+        .msg.user { background: rgba(255,255,255,0.1); align-self: flex-start; }
+        .msg.ai { background: rgba(99, 102, 241, 0.2); border: 1px solid var(--primary); align-self: flex-end; margin-left: auto; }
+        .msg.human { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); align-self: flex-end; margin-left: auto; }
+
+        .btn { padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; }
+        .btn-primary { background: var(--primary); }
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        
+        .card { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border); }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.1); }
+        .badge.alert { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--danger); }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>🕹️ Huy OS / Omnichannel Control</h2>
+        <div>Trạng thái hệ thống: <span style="color:var(--success)">● Online</span></div>
+    </header>
+    
+    <div class="main-container">
+        <!-- Sidebar: Danh sách khách -->
+        <div class="sidebar" id="conv-list">
+            <div style="padding: 16px; font-weight: 600; opacity: 0.7; border-bottom: 1px solid var(--border);">Inbox đang mở</div>
+            <div id="conversations-container">
+                <!-- Data API đổ vào đây -->
+            </div>
+        </div>
+
+        <!-- Cửa sổ Chat -->
+        <div class="chat-area">
+            <div class="chat-history" id="chat-history">
+                <div class="msg user">Chào bạn, dự án Lumiere này giá nhiêu em?</div>
+                <div class="msg ai">Dạ anh chị tham khảo căn 2PN giá từ 3.5 tỷ ạ. Hiện tại Cường đang có chính sách ân hạn nợ gốc 24 tháng 0% lãi. Mình mua ở hay đầu tư ạ? 🫡</div>
+                <div class="msg user">Cho mình xem mặt bằng nhé</div>
+            </div>
+            <div class="chat-input">
+                <button class="btn btn-danger" onclick="takeOver()">🛑 Dừng AI (Take-over)</button>
+                <input type="text" placeholder="Gõ trả lời tư cách Nhân viên thật..." id="admin-input">
+                <button class="btn btn-primary" onclick="sendHumanMessage()">Gửi (Human)</button>
+            </div>
+        </div>
+
+        <!-- Khung CRM Context -->
+        <div class="context-panel">
+            <h3>Hồ sơ Khách Hàng</h3>
+            <div class="card">
+                <p><strong>Khách:</strong> <span id="crm-id">Chưa chọn</span></p>
+                <p><strong>Nguồn:</strong> <span id="crm-src">Website/MXH</span></p>
+                <p><strong>Phễu mua hàng:</strong> <span class="badge" style="background:#f59e0b; color:#fff" id="crm-stage">...</span></p>
+            </div>
+
+            <h3>AI Insights (Pattern)</h3>
+            <div class="card" style="border-left: 3px solid var(--primary)">
+                <p style="font-size: 14px; opacity: 0.9; line-height: 1.5;">
+                    💡 <strong>Gợi ý từ Máy học:</strong> Khách hỏi BĐS ở tầng 'Đàm phán', tỷ lệ chốt cao nhất (68%) nếu sếp dùng chiêu cọc giữ chỗ (FOMO) kèm chính sách vay 0%.
+                </p>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-success" style="width: 100%;">💰 Gắn Tag: ĐÃ CHỐT ĐƠN</button>
+                <button class="btn" style="width: 100%; margin-top: 10px; background: rgba(255,255,255,0.1);">❌ Gắn Tag: KHÔNG MUA MẤT RỒI</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentConvId = null;
+
+        // Fetch danh sách khách hàng từ DB
+        async function fetchConversations() {
+            const res = await fetch('/api/admin/conversations');
+            const data = await res.json();
+            const container = document.getElementById('conversations-container');
+            container.innerHTML = '';
+            
+            data.forEach(conv => {
+                const isHumanAlert = conv.status === 'human_takeover';
+                let html = `
+                <div class="conv-item ${currentConvId === conv.id ? 'active' : ''}" onclick="loadMessages('${conv.id}', '${conv.name}', '${conv.stage}')">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <strong>${conv.name} (${conv.channel})</strong>
+                        <span class="badge ${isHumanAlert ? 'alert' : ''}" style="${!isHumanAlert ? 'background:var(--success)' : ''}">${isHumanAlert ? 'Sale Needed' : 'AI Active'}</span>
+                    </div>
+                </div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        // Fetch tin nhắn khi bấm vào khách
+        async function loadMessages(convId, name, stage) {
+            currentConvId = convId;
+            fetchConversations(); // highlight active
+            
+            // Đổ Context Right-Panel
+            document.getElementById('crm-id').innerText = name;
+            document.getElementById('crm-stage').innerText = stage;
+
+            const res = await fetch(`/api/admin/conversations/${convId}/messages`);
+            const msgs = await res.json();
+            const historyObj = document.getElementById('chat-history');
+            historyObj.innerHTML = '';
+            
+            msgs.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'msg ' + (m.role === 'user' ? 'user' : (m.role === 'system_human' ? 'human' : 'ai'));
+                div.innerText = m.content;
+                historyObj.appendChild(div);
+            });
+            historyObj.scrollTop = historyObj.scrollHeight;
+        }
+
+        // Chạy lần đầu
+        fetchConversations();
+
+        // Lắng nghe có tin nhắn mới thì báo màn hình
+        socket.on('new_message', (data) => {
+            fetchConversations(); // cập nhật list
+            if (data.conversationId === currentConvId) {
+                const history = document.getElementById('chat-history');
+                const div = document.createElement('div');
+                div.className = 'msg ' + (data.message.role === 'user' ? 'user' : 'ai');
+                div.innerText = data.message.content;
+                history.appendChild(div);
+                history.scrollTop = history.scrollHeight;
+            }
+        });
+
+        // Lắng nghe sự kiện cướp cờ
+        socket.on('handover_alert', (data) => {
+            fetchConversations();
+            alert(`🚨 AI BÁO ĐỘNG: Hội thoại ${data.conversationId} cần người thật!\nLý do: ${data.reason}`);
+        });
+
+        function takeOver() {
+            alert("Đã ngắt AI. Khách chỉ nhận được tin do Sale gõ tay.");
+        }
+
+        function sendHumanMessage() {
+            const input = document.getElementById('admin-input');
+            if(!input.value || !currentConvId) return;
+            // Thực tế gọi API POST /api/admin/conversations/:id/reply
+            const history = document.getElementById('chat-history');
+            const div = document.createElement('div');
+            div.className = 'msg human';
+            div.innerText = input.value;
+            history.appendChild(div);
+            history.scrollTop = history.scrollHeight;
+            input.value = '';
+        }
+    </script>
+</body>
+</html>
