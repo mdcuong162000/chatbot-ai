@@ -20,13 +20,22 @@ async function getChatResponse(message, conversationId, options = {}) {
   // Thực tế: Tách riêng Intent Router, ở đây demo tìm theo keyword
   let productContext = '';
   const products = knowledgeService.getAllActiveProducts();
+  const shopInventory = products.map(p => p.name).join(', ');
+
   const matchedProduct = products.find(p => message.toLowerCase().includes(p.name.toLowerCase()));
   
   if (matchedProduct) {
-    productContext = `\n\nKIẾN THỨC BẮT BUỘC DÙNG DỂ TƯ VẤN (Sản phẩm: ${matchedProduct.name}):
+    productContext = `\n\n[TRẠNG THÁI: KHÁCH ĐANG HỎI SẢN PHẨM CỤ THỂ]
+    - Tên SP: ${matchedProduct.name}
     - Giá: ${matchedProduct.price} VNĐ
     - USP (Điểm bán hàng): ${matchedProduct.selling_points.join(', ')}
     - Tip chốt sale: ${matchedProduct.style_tip}`;
+  } else {
+    productContext = `\n\n[TRẠNG THÁI: KHÁCH HỎI CHUNG CHUNG]
+    - Cửa hàng hiện LÀM TÍNH NĂNG BÁN: ${shopInventory || 'Chưa có sản phẩm nào'}.
+    - Nếu khách hỏi "Shop bán gì", hãy liệt kê các sản phẩm trên.
+    - TUYỆT ĐỐI KHÔNG BỊA RA (hallucinate) cửa hàng bán mỹ phẩm, điện tử, đồ gia dụng hay bất cứ thứ gì khác ngoài danh sách trên.
+    - Mục tiêu: Khéo léo mời chào, khơi gợi nhu cầu để khách mua các mặt hàng có sẵn của shop.`;
   }
 
   // Ưu tiên dùng Groq
@@ -42,9 +51,10 @@ async function getGroqResponse(message, history = [], productContext = '', optio
   try {
     const systemInstruction = options.skipGreeting 
       ? 'Bạn là Huy, trình biên dịch lệnh Shell chuyên nghiệp. CHỈ TRẢ VỀ LỆNH.'
-      : `Bạn là Huy, AI thay mặt Sales tư vấn khách hàng cực kỳ khéo léo và tự nhiên. 
-         - Trả lời CHẮC CHẮN ngắn gọn (1-2 câu). Dùng ngôn ngữ bán hàng thân thiện.
-         - KHÔNG nhận là AI. Xưng em/shop gọi khách là anh/chị.
+      : `Bạn là trợ lý AI thay mặt Sales của cửa hàng.
+         MỤC ĐÍCH TỐI THƯỢNG: Chỉ bán những gì shop có, điều hướng khách hàng vào phễu chốt đơn.
+         - Trả lời CHẮC CHẮN ngắn gọn (1-2 câu). Dùng ngôn ngữ thân thiện, chuyên nghiệp.
+         - KHÔNG nhận là AI/Bot. Xưng em/shop gọi khách là anh/chị.
          ${productContext}`;
 
     const chatCompletion = await groq.chat.completions.create({
