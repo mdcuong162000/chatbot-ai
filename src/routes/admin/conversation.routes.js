@@ -1,0 +1,94 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../../db');
+
+// Lấy danh sách toàn bộ các cuộc hội thoại (Kèm thông tin khách hàng)
+router.get('/', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT c.id, c.status, c.channel, c.started_at, 
+             u.id as customer_id, u.name, u.stage 
+      FROM conversations c
+      JOIN customers u ON c.customer_id = u.id
+      ORDER BY c.started_at DESC
+    `);
+    const conversations = stmt.all();
+    res.json(conversations);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lấy đầy đủ metadata khách hàng cho 1 hội thoại (Phục vụ Panel Phải - CRM)
+router.get('/:id/metadata', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT u.* 
+      FROM customers u
+      JOIN conversations c ON u.id = c.customer_id
+      WHERE c.id = ?
+    `);
+    const metadata = stmt.get(req.params.id);
+    res.json(metadata);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lấy chi tiết tin nhắn của 1 hội thoại cụ thể
+router.get('/:id/messages', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT role, content, created_at 
+      FROM messages 
+      WHERE conversation_id = ? 
+      ORDER BY created_at ASC
+    `);
+    const messages = stmt.all(req.params.id);
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Dừng AI (Take-over)
+router.post('/:id/takeover', (req, res) => {
+  try {
+    db.prepare("UPDATE conversations SET status = 'human_takeover' WHERE id = ?").run(req.params.id);
+    res.json({ success: true, message: 'Đã cướp cờ từ AI' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gửi tin nhắn từ Nhân viên (Người thật)
+router.post('/:id/messages', (req, res) => {
+  try {
+    const { content } = req.body;
+    db.prepare(`
+      INSERT INTO messages (conversation_id, role, content) 
+      VALUES (?, 'system_human', ?)
+    `).run(req.params.id, content);
+    
+    const socketService = require('../../services/socket.service');
+    socketService.emitNewMessage(req.params.id, { role: 'assistant', content });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gắn Tag Outcome (Chốt đơn / Trượt)
+router.post('/:id/outcome', (req, res) => {
+  try {
+    const { has_purchased, notes } = req.body;
+    const outcomeService = require('../../services/outcome.service');
+    outcomeService.logOutcome(req.params.id, has_purchased, notes || 'Manual Tagging');
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+module.exports = router;

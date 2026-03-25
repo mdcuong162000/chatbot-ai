@@ -14,11 +14,11 @@ app.use(express.static('src/public'));
 app.use(express.static('.')); // Cho sếp test file tạo ở root
 
 // Routes
-app.use('/api', chatRoutes); // -> /api/chat
+app.use('/api/admin', adminRoutes); // Mount more specific routes FIRST
 app.use('/api/products', productRoutes);
-app.use('/api/webhook/facebook', webhookRoutes);
+app.use('/api/webhook', webhookRoutes);
 app.use('/api/webhook/zalo', zaloRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api', chatRoutes); // Mount generic /api LAST
 
 // Chạy Notification Engine mỗi 30 phút (Mục 7)
 cron.schedule('*/30 * * * *', () => {

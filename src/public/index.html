@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Huy Chatbot AI v5.0 🫡</title>
+    <title>Mika - Chuyên Viên Tư Vấn Shop 🛍️</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -106,7 +106,7 @@
         }
 
         .ai-message::before {
-            content: 'H';
+            content: 'M';
             position: absolute;
             left: -35px;
             bottom: 0;
@@ -183,12 +183,12 @@
 <body>
     <div class="container">
         <header>
-            <h1>Huy AI Chatbot <span style="font-size: 14px; opacity: 0.7;">v5.0</span></h1>
-            <div style="font-size: 12px; opacity: 0.6;">Status: Online 🫡</div>
+            <h1>Mika Chatbot <span style="font-size: 14px; opacity: 0.7;">AI Assistant</span></h1>
+            <div style="font-size: 12px; opacity: 0.6;">Status: Online ✨</div>
         </header>
 
         <div id="chat-window">
-            <div class="message ai-message">Chào sếp! Huy bản nâng cấp v5.0 đã sẵn sàng tác chiến. Sếp cần Huy hỗ trợ gì hôm nay không ạ? 🫡</div>
+            <div class="message ai-message">Chào bạn! Mình là Mika, chuyên viên tư vấn của Shop. Rất vui được hỗ trợ bạn! Bạn đang quan tâm đến sản phẩm nào để mình tư vấn kỹ hơn nhé? 😊</div>
         </div>
 
         <div class="input-area">
@@ -203,10 +203,10 @@
         const sendBtn = document.getElementById('send-btn');
         
         // Sinh ra ID độc nhất và lưu vĩnh viễn vào trình duyệt (Thay vì dùng IP dễ bị đụng hàng ở Wifi công cộng)
-        let customerId = localStorage.getItem('huy_chatbot_id');
+        let customerId = localStorage.getItem('mika_chatbot_id');
         if (!customerId) {
             customerId = 'web_' + Math.random().toString(36).substring(2, 12);
-            localStorage.setItem('huy_chatbot_id', customerId);
+            localStorage.setItem('mika_chatbot_id', customerId);
         }
 
         async function sendMessage() {
@@ -220,7 +220,7 @@
             // Loading state
             const loadingMsg = document.createElement('div');
             loadingMsg.className = 'message ai-message typing';
-            loadingMsg.innerText = 'Huy đang suy nghĩ...';
+            loadingMsg.innerText = 'Mika đang suy nghĩ...';
             chatWindow.appendChild(loadingMsg);
             chatWindow.scrollTop = chatWindow.scrollHeight;
 
@@ -237,11 +237,11 @@
                 if (data.reply) {
                     addMessage(data.reply, 'ai');
                 } else {
-                    addMessage('Có lỗi xảy ra sếp ơi! 🤖', 'ai');
+                    addMessage('Hiện tại mình chưa xử lý được thông tin này, bạn đợi mình một chút nhé! ✨', 'ai');
                 }
             } catch (error) {
                 chatWindow.removeChild(loadingMsg);
-                addMessage('Không kết nối được server sếp ơi! 🤖', 'ai');
+                addMessage('Kết nối đang gián đoạn, bạn vui lòng nhắn lại sau ít phút nhé! ✨', 'ai');
             }
         }
 

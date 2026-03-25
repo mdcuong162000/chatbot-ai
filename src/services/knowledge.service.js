@@ -132,6 +132,23 @@ class KnowledgeService {
     return products.map(this._parseProductJSON);
   }
 
+  /**
+   * Lấy danh sách gợi ý sản phẩm (Upsell/Cross-sell) [NEW Phase 13]
+   */
+  getRecommendations(productId) {
+    const recommendationsMap = {
+      'juni_cleanser': ['sun_juni', 'lunys_serum'],      // Rửa mặt -> Chống nắng / Serum
+      'lunys_serum': ['lunys_cream'],                  // Serum -> Kem dưỡng (Full bộ LUNYS)
+      'sun_juni': ['juni_cleanser'],                   // Chống nắng -> Rửa mặt (Tẩy trang)
+      'lunys_cream': ['lunys_serum'],                  // Kem dưỡng -> Serum
+      'th_p1': ['lunys_cream'],                        // Serum Thái -> Kem dưỡng
+      'th_p2': ['sun_juni']                            // Rửa mặt Thái -> Chống nắng
+    };
+
+    const relatedIds = recommendationsMap[productId] || [];
+    return relatedIds.map(id => this.getProductById(id)).filter(p => p && p.is_active);
+  }
+
   // Parse lại JSON fields khi xuất ra
   _parseProductJSON(product) {
     try {

@@ -2,12 +2,11 @@ const express = require('express');
 const router = express.Router();
 const aiService = require('../services/ai.service');
 const memoryService = require('../services/memory.service');
-const outcomeService = require('../services/outcome.service');
-const knowledgeService = require('../services/knowledge.service');
+const db = require('../db');
 
-const VERIFY_TOKEN = 'huy_chatbot_v5_secret_hieu_chua_sep';
+const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || 'huy_chatbot_v5_secret_hieu_chua_sep';
 
-// Xác thực Webhook (Dành cho Facebook)
+// Xác thực Webhook (Dành cho Facebook Setup)
 router.get('/facebook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -26,34 +25,50 @@ router.get('/facebook', (req, res) => {
 router.post('/facebook', async (req, res) => {
   const { body } = req;
 
-  // Facebook yêu cầu phải trả về 200 OK ngay lập tức
+  // 1. Trả về 200 OK ngay để Facebook không retry
   res.status(200).send('EVENT_RECEIVED');
 
   if (body.object === 'page') {
     for (const entry of body.entry) {
+      const pageId = entry.id; // Page ID nhận tin nhắn
       const webhookEvent = entry.messaging[0];
-      const senderPsid = webhookEvent.sender.id; // customer_id trên Facebook
+      const senderPsid = webhookEvent.sender.id;
 
       if (webhookEvent.message && webhookEvent.message.text) {
         const messageText = webhookEvent.message.text;
 
-        // 1. Lấy/tạo hội thoại
-        const conversationId = memoryService.getOrCreateConversation(senderPsid, 'facebook');
-        
-        // 2. Xử lý AI qua Router Logic (Mục 8 - Giai đoạn Enterprise)
-        // Router trong aiService sẽ tự động: detect Khiếu nại, VIP, Blacklist
-        // và tự động cập nhật status hội thoại thành 'human_takeover' nếu cần.
-        memoryService.logMessage(conversationId, 'user', messageText);
- 
-        try {
-          const reply = await aiService.getChatResponse(messageText, conversationId);
-          memoryService.logMessage(conversationId, 'assistant', reply);
+        // 2. Tìm Market & Token từ DB
+        const mapping = db.prepare('SELECT market_code, access_token FROM market_page_mapping WHERE page_id = ?').get(pageId);
+        const marketCode = mapping ? mapping.market_code : 'TH';
+        const accessToken = mapping ? mapping.access_token : process.env.MESSENGER_PAGE_ACCESS_TOKEN;
 
-          // (Gửi lệnh API tới Facebook Messenger - Đoạn này cần Fanpage Access Token)
-          // Hiện tại chỉ log ra console
-          console.log(`[FB REPLY sent to ${senderPsid}]: ${reply}`);
+        // 3. Xử lý qua Chatbot Engine
+        const conversationId = memoryService.getOrCreateConversation(senderPsid, 'facebook');
+        memoryService.logMessage(conversationId, 'user', messageText);
+
+        try {
+          // Gọi AI Router với market_code động
+          const replyText = await aiService.getChatResponse(messageText, conversationId);
+          memoryService.logMessage(conversationId, 'assistant', replyText);
+
+          // 4. Gửi ngược lại cho Facebook qua native fetch
+          const response = await fetch(`https://graph.facebook.com/v21.0/me/messages?access_token=${accessToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipient: { id: senderPsid },
+              message: { text: replyText }
+            })
+          });
+
+          const result = await response.json();
+          if (result.error) {
+            console.error('❌ Lỗi Facebook API:', result.error.message);
+          } else {
+            console.log(`✅ Đã rep khách ${senderPsid} (Market: ${marketCode})`);
+          }
         } catch (err) {
-          console.error('Lỗi khi xử lý FB Msg:', err);
+          console.error('❌ Lỗi Webhook Flow:', err.message);
         }
       }
     }

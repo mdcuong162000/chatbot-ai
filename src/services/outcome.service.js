@@ -31,9 +31,19 @@ class OutcomeService {
         UPDATE customers 
         SET stage = 'da_mua', 
             total_orders = total_orders + 1, 
+            status = 'active_customer',
             stage_updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
       `).run(data.customerId);
+
+      // Tự động nâng cấp VIP nếu đạt mốc (Phase 13)
+      const customer = db.prepare('SELECT total_orders FROM customers WHERE id = ?').get(data.customerId);
+      if (customer && customer.total_orders >= 5) {
+        db.prepare("UPDATE customers SET priority_level = 'high' WHERE id = ?").run(data.customerId);
+      }
+    } else if (data.result === 'no_buy') {
+      // Gắn nhãn tiềm năng nếu khách hỏi nhiều nhưng chưa mua (Phase 13)
+      db.prepare("UPDATE customers SET status = 'warm_lead' WHERE id = ? AND total_orders = 0").run(data.customerId);
     }
     
     return { success: true, outcomeId: id };

@@ -7,4 +7,6 @@ module.exports = {
   groqApiKey: process.env.GROQ_API_KEY,
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
   allowedUserId: process.env.ALLOWED_USER_ID,
+  messengerPageAccessToken: process.env.MESSENGER_PAGE_ACCESS_TOKEN,
+  messengerAppSecret: process.env.MESSENGER_APP_SECRET,
 };

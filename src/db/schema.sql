@@ -131,3 +131,11 @@ CREATE TABLE IF NOT EXISTS outcomes (
   FOREIGN KEY(product_id) REFERENCES products(id),
   FOREIGN KEY(customer_id) REFERENCES customers(id)
 );
+
+-- Mapping Fanpage -> Market [NEW Phase 8]
+CREATE TABLE IF NOT EXISTS market_page_mapping (
+  page_id TEXT PRIMARY KEY,
+  market_code TEXT NOT NULL,
+  access_token TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
