@@ -26,10 +26,24 @@ CREATE TABLE IF NOT EXISTS customers (
   status TEXT DEFAULT 'new_lead',
   priority_level TEXT DEFAULT 'normal',
   last_purchase_date DATETIME,
+  birthday TEXT,       -- Format: 'YYYY-MM-DD'
   last_notification_at DATETIME,
   total_orders INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Cài đặt hệ thống (Enterprise Control)
+CREATE TABLE IF NOT EXISTS system_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Bơm cài đặt mặc định
+INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ai_persona', 'Huy - Trợ lý bán hàng nhiệt tình');
+INSERT OR IGNORE INTO system_settings (key, value) VALUES ('ai_temperature', '0.7');
+INSERT OR IGNORE INTO system_settings (key, value) VALUES ('escalate_threshold', '5000000');
+INSERT OR IGNORE INTO system_settings (key, value) VALUES ('enable_auto_notifications', '1');
 
 -- Khiếu nại (Enterprise)
 CREATE TABLE IF NOT EXISTS complaints (
