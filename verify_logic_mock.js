@@ -22,9 +22,11 @@ async function testLogic(name, customerId, message) {
     persona = "🚫 BLACKLIST (Từ chối phục vụ)";
   } else if (metadata?.active_complaint || hasComplaintKeyword) {
     persona = "⚠️ PHẢN HỒI KHIẾU NẠI (Mục 6)";
-    if (metadata?.priority_level === 'VIP' || message.includes('kiện')) {
+    if (message.includes('kiện') || message.includes('công an')) {
        persona += " + 🚨 ESCALATE (Người thật)";
     }
+  } else if (metadata?.priority_level === 'VIP') {
+    persona = "💎 VIP ESCALATION (Người thật)";
   } else if (metadata && metadata.total_orders > 0) {
     persona = "🤝 CHĂM SÓC KHÁCH CŨ (Mục 5C)";
   } else {
