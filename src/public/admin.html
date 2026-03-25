@@ -345,19 +345,40 @@
                 <p style="color: var(--text-dim); margin-top: 10px;">Quản lý 7 chiến dịch gửi tin nhắn tự động (Retention).</p>
                 <div class="training-grid">
                     <div class="faq-card" style="border-left: 4px solid var(--primary);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                            <span class="badge" style="background:rgba(99,102,241,0.2); color:var(--primary)">Retention</span>
+                            <div style="width:10px; height:10px; border-radius:50%; background:var(--success)"></div>
+                        </div>
                         <h3>1. Nhắc thanh toán (Abandoned Cart)</h3>
-                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Gửi sau 2h nếu khách chưa thanh toán.</p>
-                        <button class="btn btn-outline" style="font-size: 12px;">Cấu hình</button>
+                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Tự động gửi tin nhắn thúc giục khách hoàn tất đơn hàng sau 2 giờ.</p>
+                        <div style="display:flex; align-items:center; gap:10px; margin-top:12px;">
+                            <button class="btn btn-outline" style="font-size: 12px;" onclick="showMarketingModal('abandoned_cart')">Cấu hình</button>
+                            <span style="font-size:11px; color:var(--success)">● Active</span>
+                        </div>
                     </div>
                     <div class="faq-card" style="border-left: 4px solid var(--success);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                            <span class="badge" style="background:rgba(16,185,129,0.2); color:var(--success)">Birthday</span>
+                            <div style="width:10px; height:10px; border-radius:50%; background:var(--success)"></div>
+                        </div>
                         <h3>2. Chúc mừng Sinh nhật</h3>
-                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Lấy từ dữ liệu Tag động của khách.</p>
-                        <button class="btn btn-outline" style="font-size: 12px;">Cấu hình</button>
+                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Gửi mã giảm giá cá nhân hóa vào đúng ngày sinh nhật của khách.</p>
+                        <div style="display:flex; align-items:center; gap:10px; margin-top:12px;">
+                            <button class="btn btn-outline" style="font-size: 12px;" onclick="showMarketingModal('birthday')">Cấu hình</button>
+                            <span style="font-size:11px; color:var(--success)">● Active</span>
+                        </div>
                     </div>
                     <div class="faq-card" style="border-left: 4px solid var(--warning);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                            <span class="badge" style="background:rgba(245,158,11,0.2); color:var(--warning)">Feedback</span>
+                            <div style="width:10px; height:10px; border-radius:50%; background:var(--text-dim)"></div>
+                        </div>
                         <h3>3. Thu thập Feedback</h3>
-                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Gửi sau 3 ngày kể từ khi đơn hàng giao thành công.</p>
-                        <button class="btn btn-outline" style="font-size: 12px;">Cấu hình</button>
+                        <p style="font-size: 13px; color: var(--text-dim); margin: 12px 0;">Tự động hỏi thăm cảm nhận khách hàng sau 3 ngày kể từ khi nhận hàng.</p>
+                        <div style="display:flex; align-items:center; gap:10px; margin-top:12px;">
+                            <button class="btn btn-outline" style="font-size: 12px;" onclick="showMarketingModal('feedback')">Cấu hình</button>
+                            <span style="font-size:11px; color:var(--text-dim)">○ Disabled</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -424,23 +445,22 @@
         </div>
     </div>
 
-    <!-- FAQ Edit Modal -->
-    <div class="fixed-overlay" id="faq-modal">
+    <!-- Marketing Config Modal -->
+    <div class="fixed-overlay" id="marketing-modal">
         <div class="overlay-card">
-            <h2 id="faq-modal-title">Thêm kịch bản đào tạo</h2>
+            <h2 id="mkt-title">Cấu hình Chiến dịch</h2>
             <div style="margin-top: 24px;">
                 <div class="form-group">
-                    <input type="hidden" id="faq-id">
-                    <label>Câu hỏi / Tình huống</label>
-                    <input type="text" id="faq-q" placeholder="Ví dụ: Phí ship Thái Lan bao nhiêu?">
+                    <label>Kịch bản tin nhắn (AI Copywriter)</label>
+                    <textarea id="mkt-script" style="min-height: 120px;" placeholder="Dùng {{name}} để cá nhân hóa..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Câu trả lời của AI</label>
-                    <textarea id="faq-a" style="min-height: 100px;"></textarea>
+                    <label>Độ trễ gửi tin (Giờ)</label>
+                    <input type="number" id="mkt-delay" value="2">
                 </div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top:20px;">
                     <button class="btn btn-outline" onclick="closeAllModals()">Hủy</button>
-                    <button class="btn btn-primary" onclick="saveFaq()">Lưu kịch bản</button>
+                    <button class="btn btn-primary" onclick="alert('Đã cập nhật chiến dịch thành công!') || closeAllModals()">Lưu cấu hình</button>
                 </div>
             </div>
         </div>
@@ -629,15 +649,59 @@
             const filtered = data.filter(p => p.market_code === activeMarket);
             container.innerHTML = filtered.map(p => `
                 <div class="faq-card">
-                    <h3>${p.name}</h3>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <span class="badge b-market">${p.industry}</span>
+                        <span class="badge b-market">${p.market_code}</span>
+                    </div>
+                    <h3 style="margin-top:10px;">${p.name}</h3>
                     <p style="color:var(--primary); font-weight:700; font-size:1.1em; margin:8px 0;">${p.price} B</p>
-                    <p style="font-size:12px; color:var(--text-dim);">${p.fits_who}</p>
+                    <p style="font-size:12px; color:var(--text-dim); line-height:1.4;">${p.fits_who}</p>
                     <div style="margin-top:16px; display:flex; gap:10px;">
                         <button class="btn btn-outline" style="font-size:11px;">Chi tiết</button>
                         <button class="btn btn-danger" style="font-size:11px;" onclick="deleteProduct('${p.id}')">Xóa</button>
                     </div>
                 </div>
             `).join('');
+        }
+
+        // --- CRM LOGIC ---
+        async function loadCustomers() {
+            const res = await fetch('/api/admin/customers');
+            const data = await res.json();
+            const container = document.getElementById('customer-grid');
+            container.innerHTML = data.map(c => `
+                <div class="faq-card" style="border-left: 4px solid ${c.priority_level === 'VIP' ? '#facc15' : 'var(--glass-border)'}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <strong>${c.name || 'Khách ẩn danh'}</strong>
+                        <span class="badge ${c.priority_level === 'VIP' ? 'b-vip' : 'b-market'}">${c.priority_level}</span>
+                    </div>
+                    <div style="font-size:13px; color:var(--text-dim); display:grid; gap:4px;">
+                        <div>📍 Stage: ${c.stage}</div>
+                        <div>📦 Tổng đơn: ${c.total_orders}</div>
+                        <div>📞 SĐT: ${c.phone || 'N/A'}</div>
+                    </div>
+                    <div style="margin-top:16px; display:flex; gap:10px;">
+                        <button class="btn btn-outline" style="font-size:11px;">Hồ sơ chi tiết</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- MARKETING LOGIC ---
+        function showMarketingModal(type) {
+            document.getElementById('marketing-modal').style.display = 'flex';
+            const title = document.getElementById('mkt-title');
+            const script = document.getElementById('mkt-script');
+            if (type === 'abandoned_cart') {
+                title.innerText = 'Cấu hình Abandoned Cart';
+                script.value = 'Chào {{name}}, mình thấy bạn còn đơn hàng chưa hoàn tất. Đừng quên shop đang có ưu đãi 10% cho bạn nhé!';
+            } else if (type === 'birthday') {
+                title.innerText = 'Cấu hình Chúc mừng Sinh nhật';
+                script.value = 'Chúc mừng sinh nhật {{name}}! Tặng bạn mã HPBD cho đơn hàng hôm nay nha!';
+            } else {
+                title.innerText = 'Cấu hình Thu thập Feedback';
+                script.value = 'Chào {{name}}, sản phẩm dùng có tốt không ạ? Cho shop xin feedback nhé!';
+            }
         }
 
         // ... các logic update Setting tương tự admin cũ ...
