@@ -1,8 +1,8 @@
 const db = require('./src/db');
 
-console.log('--- SEEDING PRODUCTION DEMO DATA ---');
+console.log('--- SEEDING 50 REAL-WORLD DEMO CASES ---');
 
-// 1. CLEAR OLD TEST DATA
+// 1. CLEAR OLD DATA
 db.pragma('foreign_keys = OFF');
 db.prepare('DELETE FROM messages').run();
 db.prepare('DELETE FROM complaints').run();
@@ -11,57 +11,67 @@ db.prepare('DELETE FROM conversations').run();
 db.prepare('DELETE FROM customers').run();
 db.prepare('DELETE FROM products').run();
 db.pragma('foreign_keys = ON');
-console.log('✅ Cleaned up old data.');
 
-// 2. SEED PRODUCTS
-const products = [
-    { id: 'lunys_serum', name: 'LUNYS Black Ginseng Serum', price: 399, fits: 'Da nhạy cảm, lão hóa', variants: '["1+1", "2+2", "5+5"]' },
-    { id: 'lunys_cream', name: 'LUNYS Whitening Cream', price: 450, fits: 'Dưỡng trắng ban đêm', variants: '["Hũ 50g"]' },
-    { id: 'juni_cleanser', name: 'JUNI Gentle Sữa Rửa Mặt', price: 199, fits: 'Làm sạch sâu', variants: '["Chai 150ml"]' },
-    { id: 'sun_protector', name: 'JUNI Sun Screen SPF50+', price: 299, fits: 'Bảo vệ da dưới nắng', variants: '["Tuýp 50ml"]' }
+// 2. PRODUCTS
+const prods = [
+    ['lunys_serum', 'LUNYS Black Ginseng Serum', 399, 'Da nhạy cảm, nám'],
+    ['lunys_cream', 'LUNYS Whitening Cream', 450, 'Dưỡng trắng chuyên sâu'],
+    ['juni_cleanser', 'JUNI Soft Cleanser', 199, 'Làm sạch dịu nhẹ'],
+    ['sun_juni', 'JUNI Sun Screen', 299, 'Chống nắng phổ rộng']
 ];
+const stmtP = db.prepare('INSERT INTO products (id, name, price, fits_who) VALUES (?, ?, ?, ?)');
+prods.forEach(p => stmtP.run(...p));
 
-const stmtProd = db.prepare('INSERT INTO products (id, name, price, fits_who, variants) VALUES (?, ?, ?, ?, ?)');
-products.forEach(p => stmtProd.run(p.id, p.name, p.price, p.fits, p.variants));
+// 3. GENERATORS
+const names = ['Hùng', 'Lan', 'Minh', 'Vy', 'Tuấn', 'Hạnh', 'Cường', 'An', 'Linh', 'Dũng', 'Thảo', 'Quân', 'Oanh', 'Bình', 'Thủy'];
+const channels = ['facebook', 'zalo', 'web'];
+const statuses = ['new_lead', 'returning_prospect', 'existing_customer', 'existing_customer', 'existing_customer'];
+const priorities = ['normal', 'normal', 'normal', 'normal', 'VIP'];
 
-// 3. SEED CUSTOMERS
-const customers = [
-    { id: 'c_01', name: 'Anh Cường Chủ Tịch', phone: '0901234567', status: 'existing_customer', priority: 'VIP', orders: 25 },
-    { id: 'c_02', name: 'Chị Lan Mỹ Phẩm', phone: '0912345678', status: 'returning_prospect', priority: 'normal', orders: 0 },
-    { id: 'c_03', name: 'Hùng Phá Shop', phone: '0988888888', status: 'blacklist', priority: 'normal', orders: 0 },
-    { id: 'c_04', name: 'Bé Vy Cute', phone: '0377777777', status: 'new_lead', priority: 'normal', orders: 1 },
-    { id: 'c_05', name: 'Trần Tâm', phone: '0356666666', status: 'existing_customer', priority: 'normal', orders: 2 }
-];
+for (let i = 1; i <= 50; i++) {
+    const id = `c_demo_${i}`;
+    const name = names[i % names.length] + ' ' + (i > 15 ? 'Thị ' : 'Văn ') + i;
+    const status = i === 1 ? 'existing_customer' : statuses[i % statuses.length];
+    const priority = i === 1 ? 'VIP' : (i % 10 === 0 ? 'VIP' : 'normal');
+    const orders = (status === 'existing_customer') ? Math.floor(Math.random() * 10) + 1 : 0;
+    
+    // Insert Customer
+    db.prepare('INSERT INTO customers (id, name, status, priority_level, total_orders) VALUES (?, ?, ?, ?, ?)').run(
+        id, i === 1 ? 'Anh Cường Chủ Tịch' : name, status, priority, orders
+    );
 
-const stmtCust = db.prepare('INSERT INTO customers (id, name, phone, status, priority_level, total_orders) VALUES (?, ?, ?, ?, ?, ?)');
-customers.forEach(c => stmtCust.run(c.id, c.name, c.phone, c.status, c.priority, c.orders));
+    // Insert Conversation
+    const convId = `conv_demo_${i}`;
+    const convStatus = (i % 7 === 0) ? 'human_takeover' : 'open';
+    db.prepare('INSERT INTO conversations (id, customer_id, channel, status) VALUES (?, ?, ?, ?)').run(
+        convId, id, channels[i % channels.length], convStatus
+    );
 
-// 4. SEED CONVERSATIONS & MESSAGES
-const convs = [
-    { id: 'conv_01', cust: 'c_01', channel: 'facebook', status: 'open' },
-    { id: 'conv_02', cust: 'c_04', channel: 'web', status: 'human_takeover' }, // Cần xử lý gấp
-    { id: 'conv_03', cust: 'c_05', channel: 'zalo', status: 'open' }
-];
+    // Insert Messages
+    const msgRole = i % 2 === 0 ? 'user' : 'assistant';
+    const msgTexts = [
+        "Shop ơi tư vấn mình cái serum sâm đen",
+        "Lấy cho mình 1 combo 399k nhé",
+        "Dùng bao lâu thì hiệu quả vậy shop?",
+        "Hàng này có chính hãng không bạn?",
+        "Ship về Quận 7 bao lâu thì tới?",
+        "Sao nhắn mãi không thấy ai trả lời thế?",
+        "Sản phẩm dùng thích lắm, mình muốn mua thêm cho mẹ",
+        "Bên mình có tuyển sỉ không ạ?",
+        "Cho mình xem ảnh thật sản phẩm với",
+        "Có được kiểm tra hàng trước khi thanh toán không?"
+    ];
+    
+    db.prepare('INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, ?, ?)').run(
+        `m_i_${i}`, convId, 'user', msgTexts[i % msgTexts.length]
+    );
 
-const stmtConv = db.prepare('INSERT INTO conversations (id, customer_id, channel, status) VALUES (?, ?, ?, ?)');
-convs.forEach(c => stmtConv.run(c.id, c.cust, c.channel, c.status));
+    if (convStatus === 'human_takeover') {
+        db.prepare('INSERT INTO complaints (id, customer_id, conversation_id, type, content, status) VALUES (?, ?, ?, ?, ?, ?)').run(
+            `comp_i_${i}`, id, convId, 'san_pham', 'Khách thắc mắc/khiếu nại cần hỗ trợ', 'open'
+        );
+    }
+}
 
-const messages = [
-    { conv: 'conv_01', role: 'user', text: 'Chào shop, anh Cường đây, lấy anh 10 combo sâm đen nhé.' },
-    { conv: 'conv_01', role: 'assistant', text: 'Dạ chào sếp Cường ạ! Em lên đơn 10 combo 2+2 cho sếp ngay. Vẫn giao về địa chỉ cũ ở Quận 1 sếp nhỉ?' },
-    { conv: 'conv_02', role: 'user', text: 'Em ơi tại sao hàng chị nhận bị vỡ nắp thế này? Cần giải quyết gấp!' },
-    { conv: 'conv_03', role: 'user', text: 'Check giá sữa rửa mặt dùm mình' },
-    { conv: 'conv_03', role: 'assistant', text: 'Dạ sữa rửa mặt JUNI bên em đang có giá 199k ạ. Mình mua 2 chai được FREESHIP sếp nha.' }
-];
-
-const stmtMsg = db.prepare('INSERT INTO messages (id, conversation_id, role, content) VALUES (?, ?, ?, ?)');
-messages.forEach((m, idx) => stmtMsg.run(`m_demo_${idx}`, m.conv, m.role, m.text));
-
-// 5. SEED COMPLAINT
-db.prepare(`
-    INSERT INTO complaints (id, customer_id, conversation_id, type, content, status) 
-    VALUES ('comp_demo_01', 'c_04', 'conv_02', 'giao_hang', 'Vỡ nắp khi nhận hàng', 'open')
-`).run();
-
-console.log('✅ SEEDING COMPLETE. Dashboard is ready for DEMO!');
+console.log('✅ SEEDED 50 DIVERSE SCENARIOS. Dashboard is fully populated!');
 process.exit(0);
