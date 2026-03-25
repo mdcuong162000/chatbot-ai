@@ -242,10 +242,10 @@
 
     <!-- Sidebar Navigation -->
     <div class="nav-sidebar">
-        <div class="nav-icon active" onclick="switchTab('inbox')" title="Inbox">📥</div>
-        <div class="nav-icon" onclick="switchTab('products')" title="Inventory">📦</div>
-        <div class="nav-icon" onclick="switchTab('crm')" title="Customers">👥</div>
-        <div class="nav-icon" onclick="switchTab('settings')" title="Settings">⚙️</div>
+        <div class="nav-icon active" onclick="switchTab('inbox', this)" title="Inbox">📥</div>
+        <div class="nav-icon" onclick="switchTab('products', this)" title="Inventory">📦</div>
+        <div class="nav-icon" onclick="switchTab('crm', this)" title="Customers">👥</div>
+        <div class="nav-icon" onclick="switchTab('settings', this)" title="Settings">⚙️</div>
     </div>
 
     <!-- MAIN STAGE -->
@@ -305,6 +305,54 @@
             </div>
         </div>
 
+        <!-- TAB: SETTINGS -->
+        <div id="tab-settings" class="tab-content">
+            <div class="full-tab">
+                <h1>Hệ thống Cài đặt (Global Settings)</h1>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Nhân cách AI (Persona)</h3>
+                        <div class="form-group" style="margin-top:15px">
+                            <select id="s-persona" class="btn" style="width:100%; background:var(--bg-dark); color:white; border:1px solid var(--glass-border)" onchange="updateSetting('ai_persona', this.value)">
+                                <option value="Huy - Trợ lý bán hàng nhiệt tình">Bán hàng (Nhiệt tình)</option>
+                                <option value="Huy - Chuyên viên hỗ trợ chuyên nghiệp">Hỗ trợ (Chuyên nghiệp)</option>
+                                <option value="Huy - Sales chốt đơn thần tốc">Chốt đơn (Thần tốc)</option>
+                            </select>
+                        </div>
+                        <p style="font-size:12px; color:var(--text-dim); margin-top:10px">Quy định cách AI xưng hô và tiếp cận khách hàng.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Độ nhạy AI (Temperature)</h3>
+                        <input type="range" id="s-temp" min="0" max="1" step="0.1" style="width:100%; margin-top:20px" onchange="updateSetting('ai_temperature', this.value)">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:10px">
+                            <span>Chính xác (0)</span>
+                            <span id="temp-val">0.7</span>
+                            <span>Sáng tạo (1)</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Ngưỡng Báo động (Escalate)</h3>
+                        <div class="form-group" style="margin-top:15px">
+                            <label>Đơn hàng trên (VNĐ/Baht):</label>
+                            <input type="number" id="s-threshold" onchange="updateSetting('escalate_threshold', this.value)">
+                        </div>
+                        <p style="font-size:12px; color:var(--text-dim)">Hệ thống sẽ tự chuyển người thật nếu đơn hàng vượt ngưỡng này.</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Thông báo tự động</h3>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px">
+                            <span>Bật 7 Trigger chủ động</span>
+                            <input type="checkbox" id="s-auto-notif" onchange="updateSetting('enable_auto_notifications', this.checked ? '1' : '0')">
+                        </div>
+                        <p style="font-size:12px; color:var(--text-dim); margin-top:10px">Tự động nhắc thanh toán, hỏi review, sinh nhật...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Modal Product -->
@@ -341,16 +389,47 @@
         let currentTab = 'inbox';
         let activeConvId = null;
 
-        function switchTab(tab) {
+        function switchTab(tab, el) {
             currentTab = tab;
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            event.currentTarget.classList.add('active');
+            
+            const targetTab = document.getElementById(`tab-${tab}`);
+            if (targetTab) targetTab.classList.add('active');
+            
+            if (el) el.classList.add('active');
+            else if (window.event && window.event.currentTarget) window.event.currentTarget.classList.add('active');
             
             if (tab === 'products') loadProducts();
             if (tab === 'crm') loadCustomers();
             if (tab === 'inbox') loadConversations();
+            if (tab === 'settings') loadSettings();
+        }
+
+        // --- SETTINGS LOGIC ---
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/admin/settings');
+                const s = await res.json();
+                if (document.getElementById('s-persona')) document.getElementById('s-persona').value = s.ai_persona || '';
+                if (document.getElementById('s-temp')) {
+                    document.getElementById('s-temp').value = s.ai_temperature || 0.7;
+                    document.getElementById('temp-val').innerText = s.ai_temperature || 0.7;
+                }
+                if (document.getElementById('s-threshold')) document.getElementById('s-threshold').value = s.escalate_threshold || 5000000;
+                if (document.getElementById('s-auto-notif')) document.getElementById('s-auto-notif').checked = s.enable_auto_notifications === '1';
+            } catch (err) {
+                console.error('Failed to load settings:', err);
+            }
+        }
+
+        async function updateSetting(key, value) {
+            if (key === 'ai_temperature') document.getElementById('temp-val').innerText = value;
+            await fetch('/api/admin/settings/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ key, value })
+            });
         }
 
         // --- INBOX LOGIC ---

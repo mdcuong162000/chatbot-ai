@@ -153,5 +153,19 @@ router.post('/customers/:id/status', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// --- SETTINGS ---
+router.get('/settings', (req, res) => {
+    const rows = db.prepare('SELECT * FROM system_settings').all();
+    const settings = {};
+    rows.forEach(r => settings[r.key] = r.value);
+    res.json(settings);
+});
+
+router.post('/settings/update', (req, res) => {
+    const { key, value } = req.body;
+    db.prepare('INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime("now"))')
+      .run(key, value);
+    res.json({ success: true });
+});
 
 module.exports = router;

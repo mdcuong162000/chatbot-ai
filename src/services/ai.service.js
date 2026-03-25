@@ -64,86 +64,78 @@ async function getChatResponse(message, conversationId, options = {}) {
   }
 }
 
+async function getSettings() {
+  const rows = db.prepare('SELECT key, value FROM system_settings').all();
+  const settings = {};
+  rows.forEach(r => settings[r.key] = r.value);
+  return settings;
+}
+
 async function getGroqResponse(message, history = [], productContext = '', customerMeta = null, options = {}, conversationId = null) {
   try {
-    const tone_style = "em/anh chị";
-    
-    // --- MỤC 8: ROUTER LOGIC (8 BƯỚC) ---
+    const settings = await getSettings();
+    const persona = settings.ai_persona || "Huy - Trợ lý bán hàng";
+    const temperature = parseFloat(settings.ai_temperature || "0.7");
+    const threshold = parseInt(settings.escalate_threshold || "5000000");
+
+    // --- MỤC 8: ROUTER LOGIC (8 BƯỚC THEO DOC) ---
     
     // BƯỚC 1: Blacklist
     if (customerMeta && customerMeta.status === 'blacklist') {
-      return "Dạ, hiện tại Shop không thể hỗ trợ mình qua kênh này. Cảm ơn ạ.";
+      return { reply: "Dạ, hiện tại Shop không thể hỗ trợ mình qua kênh này. Cảm ơn ạ.", forceHuman: false };
     }
 
-    let systemInstruction = "";
+    let systemInstruction = `# AI PERSONA: ${persona}\n`;
     let forceHuman = false;
 
-    // BƯỚC 3: Phát hiện từ khóa khiếu nại (Mục 8 - Bước 3)
-    const complaintKeywords = ['lỗi','hỏng','sai','thiếu','chưa nhận','mất hàng','hoàn tiền','trả hàng','kiện','luật sư','báo công an','tức','bực','thất vọng','vỡ','móp','tệ','fake','nhái','lừa','không giống','ngứa','dị ứng','đỏ rát'];
+    // BƯỚC 2 & 3: Khiếu nại (Open hoặc Tìm thấy từ khóa)
+    const complaintKeywords = ['lỗi','hỏng','sai','thiếu','chưa nhận','mất hàng','hoàn tiền','trả hàng','kiện','luật sư','báo công an','đăng lên mạng','tức','bực','thất vọng','vỡ','móp','tệ','fake','nhái','lừa','không giống','ngứa','dị ứng','đỏ rát'];
     const hasComplaintKeyword = complaintKeywords.some(kw => message.toLowerCase().includes(kw));
     
     if (hasComplaintKeyword && !customerMeta?.active_complaint) {
-      // Tự động tạo record khiếu nại nếu chưa có
       memoryService.createComplaint(conversationId, customerMeta.id, message);
     }
 
-    // BƯỚC 2 & 3: Khiếu nại đang mở hoặc mới phát sinh
     if (customerMeta?.active_complaint || hasComplaintKeyword) {
-        systemInstruction = `# PROMPT KHIẾU NẠI (Mục 6)
-Bạn là chuyên viên xử lý khiếu nại.
-BƯỚC 1: Xác nhận cảm xúc (Dạ em rất tiếc/em hiểu mình đang bực ạ). TUYỆT ĐỐI không dùng "Dạ em xin lỗi ạ" (nghe máy móc).
-BƯỚC 2: Hỏi đúng trọng tâm (Lỗi lúc nào? Đã dùng bao lâu?).
-BƯỚC 3: Đưa hướng xử lý (Bên em có thể đổi mới hoặc hoàn tiền - mình muốn hướng nào?).
-BƯỚC 4: Xác nhận & Đóng.
-Mục tiêu: Xoa dịu + Giải quyết.`;
-        
-        // Phát hiện thêm từ khóa escalate nóng
-        if (message.toLowerCase().includes('kiện') || message.toLowerCase().includes('công an')) {
-           forceHuman = true;
-        }
-    } else if (customerMeta?.priority_level === 'VIP') {
-        // BƯỚC 4: VIP (Mục 8 - Bước 4) - Luôn ưu tiên người thật cho VIP
-        systemInstruction = `# CHẾ ĐỘ VIP
-Khách hàng VIP: ${customerMeta.name}.
-Hệ thống sẽ chuyển cho quản lý ngay. Hãy chào đón nồng nhiệt và nói câu chuyển tiếp.`;
+      systemInstruction += `# PROMPT KHIẾU NẠI (Mục 6 - DOC)
+1. XÁC NHẬN CẢM XÚC: Thấu hiểu, không dùng "Dạ em xin lỗi ạ" máy móc.
+2. HỎI ĐÚNG TRỌNG TÂM: Lỗi lúc nào? Gặp vấn đề gì cụ thể?
+3. HƯỚNG XỬ LÝ: Đưa ra 2 lựa chọn (Đổi trả/Hoàn tiền).
+4. XÁC NHẬN & ĐÓNG.`;
+
+      // Escalation nóng (Mục 6 - Escalation logic)
+      if (message.toLowerCase().match(/kiện|công an|luật sư|luật pháp|lên mạng/)) {
         forceHuman = true;
+      }
+    } else if (customerMeta?.priority_level === 'VIP') {
+      // BƯỚC 4: VIP
+      systemInstruction += `# ESCALATION VIP
+Khách hàng VIP: ${customerMeta.name}. Chào mừng nồng nhiệt và chuyển ngay cho Quản lý.`;
+      forceHuman = true;
     } else {
-        // BƯỚC 5: Phân loại Mới/Tiềm năng/Cũ (Mục 8 - Bước 5)
-        const isBought = customerMeta && customerMeta.total_orders > 0;
-        const isProspect = !isBought && history.length > 2; // Nhắn hơn 2 câu là tiềm năng
-
-        if (isBought) {
-            // PROMPT KHÁCH CŨ (Mục 5C)
-            systemInstruction = `# BỐI CẢNH KHÁCH CŨ (Existing Customer)
-Khách đã mua: ${customerMeta.purchased_products}.
-Lần cuối: ${customerMeta.last_purchase_date}.
-- Không hỏi lại thông tin đã biết.
-- Ưu tiên hỏi thăm trải nghiệm cũ trước khi bán mới.
-- Chốt nhanh: Đề xuất ship theo địa chỉ cũ.`;
-        } else if (isProspect) {
-            // PROMPT KHÁCH TIỀM NĂNG (Mục 5B)
-            systemInstruction = `# KHÁCH TIỀM NĂNG (Returning Prospect)
-Khách đã quan tâm nhưng chưa chốt.
-- Inject lịch sử: Khách từng hỏi về sản phẩm trước đó.
-- Tập trung xử lý từ chối (giá/ship).
-- Thúc đẩy chốt thử đơn đầu tiên.`;
-        } else {
-            // PROMPT KHÁCH MỚI (Mục 5A)
-            systemInstruction = `# VAI TRÒ KHÁCH MỚI (New Lead)
-Chào ngắn + Hỏi 1 câu khám phá nhu cầu.
-- Không giới thiệu ngay câu đầu.
-- Trả lời ngắn 3 câu.
-- Sản phẩm: ${productContext}`;
-        }
+      // BƯỚC 5: Phân loại Lead/Prospect/Existing
+      const segment = customerMeta?.status || 'new_lead';
+      
+      if (segment === 'existing_customer') {
+        systemInstruction += `# PROMPT KHÁCH CŨ (Mục 5C - DOC)
+Chào thân thiết, ưu tiên hỏi thăm trải nghiệm cũ. Sản phẩm đã mua: ${customerMeta.purchased_products}.`;
+      } else if (segment === 'returning_prospect') {
+        systemInstruction += `# PROMPT KHÁCH TIỀM NĂNG (Mục 5B - DOC)
+Khéo léo nhắc lại sự quan tâm cũ, tập trung chốt đơn đầu tiên.`;
+      } else {
+        systemInstruction += `# PROMPT KHÁCH MỚI (Mục 5A - DOC)
+Ngắn gọn (max 3 câu), tập trung khám phá nhu cầu. Sản phẩm: ${productContext}`;
+      }
     }
 
-    // Nếu phải escalate (người thật)
+    // Checking Threshold (Mục 6 - Escalation logic)
+    // Giả lập check giá trị đơn hàng hiện tại nếu có thông tin (ở đây demo qua option)
+    if (options.currentOrderValue > threshold) {
+      forceHuman = true;
+    }
+
     if (forceHuman) {
-      systemInstruction += "\n[LỆNH: GIAO CHO NGƯỜI THẬT] Hãy nói câu chuyển tiếp tự nhiên và kết thúc.";
-    }
-
-    if (options.skipGreeting) {
-        systemInstruction = 'Bạn là Huy, trình biên dịch lệnh Shell chuyên nghiệp. CHỈ TRẢ VỀ LỆNH.';
+      systemInstruction += "\n[LỆNH: GIAO CHO QUẢN LÝ] Dùng câu chuyển tiếp: 'Để hỗ trợ tốt nhất, mình kết nối bạn với quản lý ngay nhé.'";
     }
 
     const chatCompletion = await groq.chat.completions.create({
