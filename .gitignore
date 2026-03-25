@@ -4,3 +4,6 @@ src/db/chatbot.db
 src/db/chatbot.db-journal
 .DS_Store
 *.log
+
+# Bỏ qua não bộ AI
+.agent/
